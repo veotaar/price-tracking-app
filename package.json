@@ -1,0 +1,24 @@
+{
+	"name": "turbo-elysia-react",
+	"private": true,
+	"scripts": {
+		"build": "turbo run build",
+		"dev": "turbo run dev",
+		"format-and-lint": "biome check .",
+		"format-and-lint:fix": "biome check . --write",
+		"check-types": "turbo run check-types"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.4.4",
+		"turbo": "^2.8.11",
+		"typescript": "5.9.3"
+	},
+	"engines": {
+		"node": ">=18"
+	},
+	"packageManager": "bun@1.3.10",
+	"workspaces": [
+		"apps/*",
+		"packages/*"
+	]
+}
