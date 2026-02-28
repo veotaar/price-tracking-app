@@ -8,6 +8,48 @@
       "when": 1772216144741,
       "tag": "0000_medical_pixie",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772238443708,
+      "tag": "0001_nasty_purple_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772239366421,
+      "tag": "0002_common_jamie_braddock",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1772239410388,
+      "tag": "0003_puzzling_molly_hayes",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1772241748465,
+      "tag": "0004_wild_nicolaos",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1772242279585,
+      "tag": "0005_peaceful_obadiah_stane",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1772242302805,
+      "tag": "0006_shallow_bug",
+      "breakpoints": true
     }
   ]
 }
