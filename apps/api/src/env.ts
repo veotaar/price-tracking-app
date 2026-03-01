@@ -6,6 +6,7 @@ const EnvSchema = z.object({
 	BETTER_AUTH_SECRET: z.string(),
 	BETTER_AUTH_URL: z.url(),
 	PORT: z.coerce.number().default(3000),
+	REDIS_URL: z.string().default("redis://localhost:6379"),
 });
 
 export type EnvSchema = z.infer<typeof EnvSchema>;
