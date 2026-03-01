@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import { AuthProvider, useAuth } from "@web/lib/auth-context";
+import { ThemeProvider } from "@web/lib/theme-provider";
 
 import { routeTree } from "./routeTree.gen";
 
@@ -35,7 +36,9 @@ const InnerApp = () => {
 const App = () => (
 	<QueryClientProvider client={queryClient}>
 		<AuthProvider>
-			<InnerApp />
+			<ThemeProvider>
+				<InnerApp />
+			</ThemeProvider>
 		</AuthProvider>
 	</QueryClientProvider>
 );
