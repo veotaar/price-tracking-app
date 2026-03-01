@@ -50,6 +50,13 @@
       "when": 1772242302805,
       "tag": "0006_shallow_bug",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1772399189249,
+      "tag": "0007_shallow_adam_warlock",
+      "breakpoints": true
     }
   ]
 }

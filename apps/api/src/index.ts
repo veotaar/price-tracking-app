@@ -6,8 +6,9 @@ import * as z from "zod";
 import env from "./env";
 import { bullBoardPlugin } from "./jobs/board";
 import { initScheduler } from "./jobs/scheduler";
-// Side-effect import: starts the worker process
+// Side-effect imports: start the worker processes
 import "./jobs/workers/price-scrape.worker";
+import "./jobs/workers/exchange-rate.worker";
 import { OpenAPI } from "./lib/authOpenApi";
 import { betterAuth } from "./modules/auth";
 import { countries } from "./modules/countries";

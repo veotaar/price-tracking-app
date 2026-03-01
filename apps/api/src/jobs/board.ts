@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
 import { Elysia } from "elysia";
-import { priceScrapeQueue } from "./queues";
+import { exchangeRateQueue, priceScrapeQueue } from "./queues";
 
 // ---------------------------------------------------------------------------
 // Paths – resolve via require.resolve so Bun's module cache is handled
@@ -18,6 +18,10 @@ const staticPath = join(distPath, "static");
 // ---------------------------------------------------------------------------
 const bullBoardQueues = new Map<string, BullMQAdapter>();
 bullBoardQueues.set(priceScrapeQueue.name, new BullMQAdapter(priceScrapeQueue));
+bullBoardQueues.set(
+	exchangeRateQueue.name,
+	new BullMQAdapter(exchangeRateQueue),
+);
 
 // ---------------------------------------------------------------------------
 // UI config

@@ -1,7 +1,7 @@
 import { db } from "@api/db/db";
 import { table } from "@api/db/model";
 import { isNull } from "drizzle-orm";
-import { priceScrapeQueue } from "./queues";
+import { exchangeRateQueue, priceScrapeQueue } from "./queues";
 
 /**
  * Register a repeatable job for one item (1 scrape per hour).
@@ -26,6 +26,20 @@ export async function unscheduleItem(itemId: string) {
 }
 
 /**
+ * Register a daily job to fetch exchange rates (runs once every 24 hours).
+ */
+export async function scheduleExchangeRate() {
+	await exchangeRateQueue.upsertJobScheduler(
+		"exchange-rate:daily",
+		{ pattern: "0 0 * * *" }, // every day at midnight UTC
+		{
+			name: "exchange-rate",
+			data: {},
+		},
+	);
+}
+
+/**
  * On app startup, ensure every active (non-deleted) item has a scheduled job.
  */
 export async function initScheduler() {
@@ -41,6 +55,10 @@ export async function initScheduler() {
 	for (const item of items) {
 		await scheduleItem(item.id);
 	}
+
+	// Schedule daily exchange rate fetch
+	await scheduleExchangeRate();
+	console.log("[scheduler] Exchange rate schedule registered (daily)");
 
 	console.log("[scheduler] All schedules registered");
 }

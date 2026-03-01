@@ -5,42 +5,34 @@ export const currencyEnum = pgEnum("currency", [
 	"GBP", // United Kingdom
 	"SEK", // Sweden
 	"NOK", // Norway
-	"DKK", // Denmark
 	"PLN", // Poland
-	"CZK", // Czech Republic
+	"TRY", // Turkey
+	"CZK", // Czechia
+	"CHF", // Switzerland
+	"DKK", // Denmark
 	"HUF", // Hungary
 	"RON", // Romania
-	"CHF", // Switzerland
-	"ISK", // Iceland
-	"TRY", // Turkey
-	"RSD", // Serbia
-	"UAH", // Ukraine
-	"GEL", // Georgia
-	"AZN", // Azerbaijan
-	"MKD", // North Macedonia
-	"BAM", // Bosnia and Herzegovina
-	"ALL", // Albania
-	"USD", // United States
-	"CAD", // Canada
-	"BRL", // Brazil
-	"JPY", // Japan
-	"CNY", // China
-	"KRW", // South Korea
-	"INR", // India
-	"SGD", // Singapore
-	"HKD", // Hong Kong
-	"TWD", // Taiwan
-	"THB", // Thailand
-	"MYR", // Malaysia
-	"IDR", // Indonesia
-	"PHP", // Philippines
-	"AUD", // Australia
-	"NZD", // New Zealand
-	"AED", // United Arab Emirates
-	"SAR", // Saudi Arabia
+	"AED", // UAE
 	"QAR", // Qatar
 	"KWD", // Kuwait
-	"ZAR", // South Africa
+	"SGD", // Singapore
+	"JPY", // Japan
+	"KRW", // South Korea
+	"INR", // India
+	"MYR", // Malaysia
+	"THB", // Thailand
+	"PHP", // Philippines
+	"HKD", // Hong Kong
+	"TWD", // Taiwan
+	"AUD", // Australia
+	"NZD", // New Zealand
+	"USD", // USA
+	"CAD", // Canada
+	"MXN", // Mexico
+	"BRL", // Brazil
+	"ARS", // Argentina
+	"CLP", // Chile
+	"COP", // Colombia
 ]);
 
 export const strategyEnum = pgEnum("strategy", ["fetch", "browser"]);
