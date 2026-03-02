@@ -31,7 +31,7 @@ export async function unscheduleItem(itemId: string) {
 export async function scheduleExchangeRate() {
 	await exchangeRateQueue.upsertJobScheduler(
 		"exchange-rate:daily",
-		{ pattern: "0 0 * * *" }, // every day at midnight UTC
+		{ pattern: "0 15 * * *" }, // every day at 15:00 UTC
 		{
 			name: "exchange-rate",
 			data: {},

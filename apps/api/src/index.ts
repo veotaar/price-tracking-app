@@ -13,6 +13,7 @@ import { OpenAPI } from "./lib/authOpenApi";
 import { betterAuth } from "./modules/auth";
 import { countries } from "./modules/countries";
 import { items } from "./modules/items";
+import { jobs } from "./modules/jobs";
 import { products } from "./modules/products";
 import { sites } from "./modules/sites";
 
@@ -45,6 +46,7 @@ const app = new Elysia({ prefix: "/api" })
 	.use(sites)
 	.use(items)
 	.use(products)
+	.use(jobs)
 	.get("/health", () => "OK")
 	.listen(env.PORT);
 
