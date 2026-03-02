@@ -19,7 +19,7 @@ import { sites } from "./modules/sites";
 const app = new Elysia({ prefix: "/api" })
 	.use(
 		cors({
-			origin: "http://localhost:3001",
+			origin: [env.BETTER_AUTH_URL, env.FRONTEND_URL],
 			methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
 			credentials: true,
 			allowedHeaders: ["Content-Type", "Authorization", "User-Agent"],
