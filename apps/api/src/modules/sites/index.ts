@@ -1,46 +1,16 @@
-import { db } from "@api/db/db";
-import { table } from "@api/db/model";
-import { and, eq, isNull } from "drizzle-orm";
-import { createInsertSchema, createUpdateSchema } from "drizzle-zod";
 import { Elysia } from "elysia";
 import { betterAuth } from "../auth";
-
-const insertSiteSchema = createInsertSchema(table.site).omit({
-	id: true,
-	createdAt: true,
-	updatedAt: true,
-	deletedAt: true,
-});
-
-const updateSiteSchema = createUpdateSchema(table.site).omit({
-	id: true,
-	createdAt: true,
-	updatedAt: true,
-	deletedAt: true,
-});
+import { insertSiteSchema, updateSiteSchema } from "./model";
+import { createSite, deleteSite, getSite, listSites, updateSite } from "./service";
 
 export const sites = new Elysia({ name: "sites", prefix: "/sites" })
 	.use(betterAuth)
 	// List sites with optional country filter
-	.get("/", async ({ query }) => {
-		const rows = await db.query.site.findMany({
-			where: and(
-				isNull(table.site.deletedAt),
-				query.countryId
-					? eq(table.site.countryId, query.countryId as string)
-					: undefined,
-			),
-			with: { country: true },
-		});
-		return rows;
-	})
+	.get("/", ({ query }) => listSites(query.countryId as string | undefined))
 
 	// Get one site
 	.get("/:id", async ({ params, status }) => {
-		const row = await db.query.site.findFirst({
-			where: and(eq(table.site.id, params.id), isNull(table.site.deletedAt)),
-			with: { country: true },
-		});
+		const row = await getSite(params.id);
 		if (!row) return status(404);
 		return row;
 	})
@@ -48,10 +18,7 @@ export const sites = new Elysia({ name: "sites", prefix: "/sites" })
 	// Create site (admin only)
 	.post(
 		"/",
-		async ({ body }) => {
-			const [row] = await db.insert(table.site).values(body).returning();
-			return row;
-		},
+		({ body }) => createSite(body),
 		{
 			body: insertSiteSchema,
 			auth: true,
@@ -65,12 +32,7 @@ export const sites = new Elysia({ name: "sites", prefix: "/sites" })
 	.put(
 		"/:id",
 		async ({ params, body, status }) => {
-			const [row] = await db
-				.update(table.site)
-				.set(body)
-				.where(and(eq(table.site.id, params.id), isNull(table.site.deletedAt)))
-				.returning();
-
+			const row = await updateSite(params.id, body);
 			if (!row) return status(404);
 			return row;
 		},
@@ -87,12 +49,7 @@ export const sites = new Elysia({ name: "sites", prefix: "/sites" })
 	.delete(
 		"/:id",
 		async ({ params, status }) => {
-			const [row] = await db
-				.update(table.site)
-				.set({ deletedAt: new Date() })
-				.where(and(eq(table.site.id, params.id), isNull(table.site.deletedAt)))
-				.returning();
-
+			const row = await deleteSite(params.id);
 			if (!row) return status(404);
 			return { success: true };
 		},

@@ -1,42 +1,22 @@
-import { db } from "@api/db/db";
-import { table } from "@api/db/model";
-import { and, eq, isNull } from "drizzle-orm";
-import { createInsertSchema, createUpdateSchema } from "drizzle-zod";
 import { Elysia } from "elysia";
 import { betterAuth } from "../auth";
-
-const insertCountrySchema = createInsertSchema(table.country).omit({
-	id: true,
-	createdAt: true,
-	updatedAt: true,
-	deletedAt: true,
-});
-
-const updateCountrySchema = createUpdateSchema(table.country).omit({
-	id: true,
-	createdAt: true,
-	updatedAt: true,
-	deletedAt: true,
-});
+import { insertCountrySchema, updateCountrySchema } from "./model";
+import {
+	createCountry,
+	deleteCountry,
+	getCountry,
+	listCountries,
+	updateCountry,
+} from "./service";
 
 export const countries = new Elysia({ name: "countries", prefix: "/countries" })
 	.use(betterAuth)
 	// List all countries
-	.get("/", async () => {
-		const rows = await db.query.country.findMany({
-			where: isNull(table.country.deletedAt),
-		});
-		return rows;
-	})
+	.get("/", () => listCountries())
 
 	// Get one country
 	.get("/:id", async ({ params, status }) => {
-		const row = await db.query.country.findFirst({
-			where: and(
-				eq(table.country.id, params.id),
-				isNull(table.country.deletedAt),
-			),
-		});
+		const row = await getCountry(params.id);
 		if (!row) return status(404);
 		return row;
 	})
@@ -44,13 +24,7 @@ export const countries = new Elysia({ name: "countries", prefix: "/countries" })
 	// Create country (admin only)
 	.post(
 		"/",
-		async ({ body: { name, code, currency } }) => {
-			const [row] = await db
-				.insert(table.country)
-				.values({ name, code, currency })
-				.returning();
-			return row;
-		},
+		({ body }) => createCountry(body),
 		{
 			body: insertCountrySchema,
 			auth: true,
@@ -64,14 +38,7 @@ export const countries = new Elysia({ name: "countries", prefix: "/countries" })
 	.put(
 		"/:id",
 		async ({ params, body, status }) => {
-			const [row] = await db
-				.update(table.country)
-				.set(body)
-				.where(
-					and(eq(table.country.id, params.id), isNull(table.country.deletedAt)),
-				)
-				.returning();
-
+			const row = await updateCountry(params.id, body);
 			if (!row) return status(404);
 			return row;
 		},
@@ -88,14 +55,7 @@ export const countries = new Elysia({ name: "countries", prefix: "/countries" })
 	.delete(
 		"/:id",
 		async ({ params, status }) => {
-			const [row] = await db
-				.update(table.country)
-				.set({ deletedAt: new Date() })
-				.where(
-					and(eq(table.country.id, params.id), isNull(table.country.deletedAt)),
-				)
-				.returning();
-
+			const row = await deleteCountry(params.id);
 			if (!row) return status(404);
 			return { success: true };
 		},
