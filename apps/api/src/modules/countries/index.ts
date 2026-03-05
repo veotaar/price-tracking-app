@@ -11,6 +11,10 @@ import {
 
 export const countries = new Elysia({ name: "countries", prefix: "/countries" })
 	.use(betterAuth)
+	.guard({ auth: true })
+	.onBeforeHandle(({ user, status }) => {
+		if (user.role !== "admin") return status(403);
+	})
 	// List all countries
 	.get("/", () => listCountries())
 
@@ -21,20 +25,12 @@ export const countries = new Elysia({ name: "countries", prefix: "/countries" })
 		return row;
 	})
 
-	// Create country (admin only)
-	.post(
-		"/",
-		({ body }) => createCountry(body),
-		{
-			body: insertCountrySchema,
-			auth: true,
-			async beforeHandle({ user, status }) {
-				if (user.role !== "admin") return status(403);
-			},
-		},
-	)
+	// Create country
+	.post("/", ({ body }) => createCountry(body), {
+		body: insertCountrySchema,
+	})
 
-	// Update country (admin only)
+	// Update country
 	.put(
 		"/:id",
 		async ({ params, body, status }) => {
@@ -42,27 +38,12 @@ export const countries = new Elysia({ name: "countries", prefix: "/countries" })
 			if (!row) return status(404);
 			return row;
 		},
-		{
-			body: updateCountrySchema,
-			auth: true,
-			async beforeHandle({ user, status }) {
-				if (user.role !== "admin") return status(403);
-			},
-		},
+		{ body: updateCountrySchema },
 	)
 
-	// Soft-delete country (admin only)
-	.delete(
-		"/:id",
-		async ({ params, status }) => {
-			const row = await deleteCountry(params.id);
-			if (!row) return status(404);
-			return { success: true };
-		},
-		{
-			auth: true,
-			async beforeHandle({ user, status }) {
-				if (user.role !== "admin") return status(403);
-			},
-		},
-	);
+	// Soft-delete country
+	.delete("/:id", async ({ params, status }) => {
+		const row = await deleteCountry(params.id);
+		if (!row) return status(404);
+		return { success: true };
+	});

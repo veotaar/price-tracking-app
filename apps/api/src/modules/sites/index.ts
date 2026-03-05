@@ -1,12 +1,27 @@
 import { Elysia } from "elysia";
+import { z } from "zod";
 import { betterAuth } from "../auth";
 import { insertSiteSchema, updateSiteSchema } from "./model";
-import { createSite, deleteSite, getSite, listSites, updateSite } from "./service";
+import {
+	createSite,
+	deleteSite,
+	getSite,
+	listSites,
+	updateSite,
+} from "./service";
 
 export const sites = new Elysia({ name: "sites", prefix: "/sites" })
 	.use(betterAuth)
+	.guard({ auth: true })
+	.onBeforeHandle(({ user, status }) => {
+		if (user.role !== "admin") return status(403);
+	})
 	// List sites with optional country filter
-	.get("/", ({ query }) => listSites(query.countryId as string | undefined))
+	.get("/", ({ query: { countryId } }) => listSites(countryId), {
+		query: z.object({
+			countryId: z.string().optional(),
+		}),
+	})
 
 	// Get one site
 	.get("/:id", async ({ params, status }) => {
@@ -15,20 +30,12 @@ export const sites = new Elysia({ name: "sites", prefix: "/sites" })
 		return row;
 	})
 
-	// Create site (admin only)
-	.post(
-		"/",
-		({ body }) => createSite(body),
-		{
-			body: insertSiteSchema,
-			auth: true,
-			async beforeHandle({ user, status }) {
-				if (user.role !== "admin") return status(403);
-			},
-		},
-	)
+	// Create site
+	.post("/", ({ body }) => createSite(body), {
+		body: insertSiteSchema,
+	})
 
-	// Update site (admin only)
+	// Update site
 	.put(
 		"/:id",
 		async ({ params, body, status }) => {
@@ -38,25 +45,12 @@ export const sites = new Elysia({ name: "sites", prefix: "/sites" })
 		},
 		{
 			body: updateSiteSchema,
-			auth: true,
-			async beforeHandle({ user, status }) {
-				if (user.role !== "admin") return status(403);
-			},
 		},
 	)
 
-	// Soft-delete site (admin only)
-	.delete(
-		"/:id",
-		async ({ params, status }) => {
-			const row = await deleteSite(params.id);
-			if (!row) return status(404);
-			return { success: true };
-		},
-		{
-			auth: true,
-			async beforeHandle({ user, status }) {
-				if (user.role !== "admin") return status(403);
-			},
-		},
-	);
+	// Soft-delete site
+	.delete("/:id", async ({ params, status }) => {
+		const row = await deleteSite(params.id);
+		if (!row) return status(404);
+		return { success: true };
+	});

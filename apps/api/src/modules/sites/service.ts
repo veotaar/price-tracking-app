@@ -4,7 +4,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { InsertSite, UpdateSite } from "./model";
 
 export async function listSites(countryId?: string) {
-	return db.query.site.findMany({
+	return await db.query.site.findMany({
 		where: and(
 			isNull(table.site.deletedAt),
 			countryId ? eq(table.site.countryId, countryId) : undefined,
@@ -14,7 +14,7 @@ export async function listSites(countryId?: string) {
 }
 
 export async function getSite(id: string) {
-	return db.query.site.findFirst({
+	return await db.query.site.findFirst({
 		where: and(eq(table.site.id, id), isNull(table.site.deletedAt)),
 		with: { country: true },
 	});
