@@ -46,6 +46,9 @@ function RouteComponent() {
 				>
 					{signOutMutation.isPending ? <Spinner /> : "Sign Out"}
 				</Button>
+				<Link to="/app">
+					<Button variant="outline">Go to App</Button>
+				</Link>
 			</div>
 		);
 	}

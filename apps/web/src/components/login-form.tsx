@@ -1,6 +1,6 @@
 import { useForm } from "@tanstack/react-form";
 import { useMutation } from "@tanstack/react-query";
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Alert, AlertDescription, AlertTitle } from "@web/components/ui/alert";
 import { Button } from "@web/components/ui/button";
 import {
@@ -36,7 +36,7 @@ const loginFormSchema = type({
 
 export function LoginForm({ ...props }: React.ComponentProps<typeof Card>) {
 	const navigate = useNavigate();
-	const redirect = useSearch({ from: "/login", select: (s) => s.redirect });
+	// const redirect = useSearch({ from: "/login", select: (s) => s.redirect });
 
 	const {
 		mutate: login,
@@ -56,7 +56,7 @@ export function LoginForm({ ...props }: React.ComponentProps<typeof Card>) {
 			return data;
 		},
 		onSuccess: async () => {
-			await navigate({ to: redirect });
+			await navigate({ to: "/app" });
 		},
 	});
 
