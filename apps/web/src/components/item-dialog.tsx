@@ -77,7 +77,7 @@ export function AddItemDialog({ sites }: { sites: SiteOption[] }) {
 				await createItem({
 					siteId: value.siteId,
 					url: value.url.trim(),
-					...(value.name.trim() ? { name: value.name.trim() } : {}),
+					name: value.name.trim() || null,
 				});
 
 				await queryClient.invalidateQueries({ queryKey: ["items"] });
