@@ -60,6 +60,14 @@ async function processPriceScrape(itemId: string) {
 		);
 	}
 
+	if (site.priceDivisor <= 0) {
+		throw new Error(
+			`[price-scrape] Invalid price divisor ${site.priceDivisor} for site ${site.id}`,
+		);
+	}
+
+	const normalizedPriceValue = priceValue / site.priceDivisor;
+
 	// 4. Extract and update item name if not yet set
 	if (!itemRow.name) {
 		const rawName = extractText(html, site.nameCssSelector);
@@ -75,12 +83,12 @@ async function processPriceScrape(itemId: string) {
 	const currency = site.country.currency;
 	await db.insert(table.price).values({
 		itemId,
-		price: priceValue.toFixed(2),
+		price: normalizedPriceValue.toFixed(2),
 		currency,
 	});
 
 	console.log(
-		`[price-scrape] Recorded price ${priceValue} ${currency} for item ${itemId}`,
+		`[price-scrape] Recorded price ${normalizedPriceValue} ${currency} for item ${itemId} (raw: ${priceValue}, divisor: ${site.priceDivisor})`,
 	);
 }
 

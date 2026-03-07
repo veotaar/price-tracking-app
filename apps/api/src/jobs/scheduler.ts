@@ -10,7 +10,7 @@ import { exchangeRateQueue, priceScrapeQueue } from "./queues";
 export async function scheduleItem(itemId: string) {
 	await priceScrapeQueue.upsertJobScheduler(
 		`price-scrape:${itemId}`,
-		{ every: 3_600_000 }, // 1 hour in ms
+		{ every: 10_800_000 }, // 3 hours in milliseconds
 		{
 			name: "price-scrape",
 			data: { itemId },

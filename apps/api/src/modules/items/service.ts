@@ -16,7 +16,11 @@ export async function listItems(filters: { siteId?: string; search?: string }) {
 
 	return db.query.item.findMany({
 		where: and(...conditions),
-		with: { site: true },
+		with: {
+			site: {
+				with: { country: true },
+			},
+		},
 	});
 }
 

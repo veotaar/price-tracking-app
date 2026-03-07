@@ -1,0 +1,1 @@
+ALTER TABLE "site" ADD COLUMN "price_divisor" integer DEFAULT 1 NOT NULL;

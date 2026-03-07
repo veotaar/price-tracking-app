@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { index, pgTable, text } from "drizzle-orm/pg-core";
+import { index, integer, pgTable, text } from "drizzle-orm/pg-core";
 import { idField, timestamps } from "../helpers";
 import { country } from "./country";
 import { strategyEnum } from "./enums";
@@ -14,6 +14,7 @@ export const site = pgTable(
 		priceCssSelector: text("price_css_selector").notNull(),
 		nameCssSelector: text("name_css_selector").notNull(),
 		strategy: strategyEnum("strategy").notNull().default("fetch"),
+		priceDivisor: integer("price_divisor").notNull().default(1),
 		countryId: text("country_id")
 			.notNull()
 			.references(() => country.id),
