@@ -4,8 +4,18 @@ import { client } from "@web/lib/api-client";
 
 export type SitesResponse = Treaty.Data<typeof client.api.sites.get>;
 
-export async function getSites() {
-	const response = await client.api.sites.get();
+export type SitesFilters = {
+	countryId?: string;
+};
+
+export async function getSites(filters: SitesFilters = {}) {
+	const query = {
+		...(filters.countryId ? { countryId: filters.countryId } : {}),
+	};
+
+	const response = Object.keys(query).length
+		? await client.api.sites.get({ query })
+		: await client.api.sites.get();
 
 	if (response.error) {
 		throw new Error(
@@ -16,13 +26,13 @@ export async function getSites() {
 	return response.data;
 }
 
-export function sitesOptions() {
+export function sitesOptions(filters: SitesFilters = {}) {
 	return queryOptions({
-		queryKey: ["sites"],
-		queryFn: getSites,
+		queryKey: ["sites", filters],
+		queryFn: () => getSites(filters),
 	});
 }
 
-export function useSites() {
-	return useQuery(sitesOptions());
+export function useSites(filters: SitesFilters = {}) {
+	return useQuery(sitesOptions(filters));
 }
