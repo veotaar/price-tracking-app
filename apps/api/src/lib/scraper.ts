@@ -33,7 +33,7 @@ async function fetchWithBrowser(
 		const page = await browser.newPage();
 		await page.setViewportSize({ width: 1920, height: 1080 });
 		await page.goto(url, { waitUntil: "domcontentloaded" });
-		await page.waitForSelector(priceCssSelector, { timeout: 15000 });
+		await page.waitForSelector(priceCssSelector, { timeout: 60000 });
 
 		const html = await page.content();
 		const responseTimeMs = Math.round(performance.now() - start);
@@ -63,12 +63,26 @@ export function extractText(html: string, cssSelector: string): string | null {
 	const el = $(cssSelector).first();
 	if (!el.length) return null;
 
-	const firstLine =
-		el
-			.text()
-			.split("\n")
-			.map((l) => l.trim())
-			.find((l) => l.length > 0) ?? null;
+	const lines = el
+		.text()
+		.split("\n")
+		.map((line) => line.trim())
+		.filter((line) => line.length > 0);
+
+	if (lines.length === 0) return null;
+	const firstLine = lines[0];
+	if (!firstLine) return null;
+
+	const secondLine = lines[1];
+	if (/^\d+$/.test(firstLine) && secondLine) {
+		const decimalMatch = secondLine.match(/^(\d{1,2})(?:\D.*)?$/);
+		if (decimalMatch) {
+			const suffix = lines.slice(2).join(" ");
+			return suffix.length > 0
+				? `${firstLine}.${decimalMatch[1]} ${suffix}`
+				: `${firstLine}.${decimalMatch[1]}`;
+		}
+	}
 
 	return firstLine;
 }

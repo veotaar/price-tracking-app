@@ -1,11 +1,20 @@
-export function parsePrice(raw: string): number | null {
+export function parsePrice(raw: string, currency?: string): number | null {
 	// Remove currency symbols and codes
 	let cleaned = raw
 		.replace(/[$€£₺¥₹]/g, "")
-		.replace(/\b(USD|EUR|GBP|TL|TRY|JPY|INR)\b/gi, "")
+		.replace(/\b(USD|EUR|GBP|TL|TRY|JPY|INR|HUF)\b/gi, "")
 		.trim();
 
 	if (cleaned.length === 0) return null;
+
+	if (
+		currency === "HUF" &&
+		cleaned.includes(",") &&
+		!cleaned.includes(".") &&
+		/^-?\d{1,3}(,\d{3})+(?:\D.*)?$/.test(cleaned)
+	) {
+		cleaned = cleaned.replace(/,/g, "");
+	}
 
 	// Detect decimal convention:
 	// "1.234,56" (European) → comma is decimal separator

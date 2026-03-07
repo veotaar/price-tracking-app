@@ -53,7 +53,7 @@ async function processPriceScrape(itemId: string) {
 		);
 	}
 
-	const priceValue = parsePrice(rawPrice);
+	const priceValue = parsePrice(rawPrice, site.country.currency);
 	if (priceValue === null) {
 		throw new Error(
 			`[price-scrape] Failed to parse price "${rawPrice}" for item ${itemId}`,
