@@ -50,6 +50,7 @@ import {
 	SelectValue,
 } from "@web/components/ui/select";
 import { Spinner } from "@web/components/ui/spinner";
+import { getCountryChartTheme } from "@web/lib/chart-colors";
 import { currencyCodes } from "@web/lib/currencies";
 import { cn } from "@web/lib/utils";
 import {
@@ -67,16 +68,6 @@ import { type ReactNode, useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 const INITIAL_DISPLAY_CURRENCY: CurrencyCode = "EUR";
-const CHART_COLORS = [
-	"var(--chart-1)",
-	"var(--chart-2)",
-	"var(--chart-3)",
-	"var(--chart-4)",
-	"var(--chart-5)",
-	"oklch(0.72 0.12 38)",
-	"oklch(0.73 0.12 112)",
-	"oklch(0.68 0.11 305)",
-] as const;
 
 type SelectableCountry = {
 	code: string;
@@ -89,7 +80,7 @@ export const Route = createFileRoute("/app/product/$productId")({
 	loader: async ({ context: { queryClient }, params }) => {
 		const product = await queryClient.ensureQueryData(
 			productOptions(params.productId),
-		)
+		);
 		const countries = getSelectableCountries(product);
 		const defaultCountryCodes = countries.map((country) => country.code);
 		const initialFilters = {
@@ -113,7 +104,7 @@ export const Route = createFileRoute("/app/product/$productId")({
 			defaultCountryCodes,
 			history,
 			currentPrices,
-		}
+		};
 	},
 	component: RouteComponent,
 	errorComponent: () => (
@@ -139,10 +130,10 @@ function RouteComponent() {
 	const defaultCountryCodes = countries.map((country) => country.code);
 	const [displayCurrency, setDisplayCurrency] = useState<CurrencyCode>(
 		INITIAL_DISPLAY_CURRENCY,
-	)
+	);
 	const [selectedCountryCodes, setSelectedCountryCodes] = useState<string[]>(
 		loaderData.defaultCountryCodes,
-	)
+	);
 
 	const analyticsFilters = useMemo(
 		() =>
@@ -151,7 +142,7 @@ function RouteComponent() {
 				countryCodes: selectedCountryCodes,
 			}) satisfies ProductAnalyticsFilters,
 		[displayCurrency, selectedCountryCodes],
-	)
+	);
 
 	const {
 		data: historyData,
@@ -185,16 +176,18 @@ function RouteComponent() {
 
 	const selectedCountries = countries.filter((country) =>
 		selectedCountryCodes.includes(country.code),
-	)
+	);
 	const chartConfig = useMemo(
 		() => buildChartConfig(selectedCountries),
 		[selectedCountries],
-	)
+	);
 	const chartData = useMemo(
 		() => buildChartData(history?.series ?? []),
 		[history?.series],
-	)
-	const showPointDots = chartData.length <= 1;
+	);
+	// const showPointDots = chartData.length <= 1;
+	const showPointDots = true;
+
 	const yAxisDomain = useMemo(
 		() =>
 			getYAxisDomain(
@@ -202,7 +195,7 @@ function RouteComponent() {
 				selectedCountries.map((country) => country.code),
 			),
 		[chartData, selectedCountries],
-	)
+	);
 	const linkedItems = product.productItems.length;
 	const linkedSites = new Set(
 		product.productItems.map(({ item }) => item.site.id),
@@ -318,7 +311,7 @@ function RouteComponent() {
 											current.includes(countryCode)
 												? current.filter((code) => code !== countryCode)
 												: [...current, countryCode],
-										)
+										);
 									}}
 									onSelectAll={() =>
 										setSelectedCountryCodes(defaultCountryCodes)
@@ -449,8 +442,17 @@ function RouteComponent() {
 												dataKey={country.code}
 												type="monotone"
 												stroke={`var(--color-${country.code})`}
-												strokeWidth={2.25}
-												dot={showPointDots ? { r: 4, strokeWidth: 0 } : false}
+												strokeWidth={1.5}
+												strokeDasharray="6 5"
+												dot={
+													showPointDots
+														? {
+																r: 3,
+																strokeWidth: 1.5,
+																fill: `var(--color-${country.code})`,
+															}
+														: false
+												}
 												activeDot={{ r: 5 }}
 												connectNulls
 											/>
@@ -599,7 +601,7 @@ function RouteComponent() {
 				</Card>
 			</section>
 		</div>
-	)
+	);
 }
 
 function CountryFilterMenu({
@@ -657,7 +659,7 @@ function CountryFilterMenu({
 				</DropdownMenuGroup>
 			</DropdownMenuContent>
 		</DropdownMenu>
-	)
+	);
 }
 
 function StatCard({
@@ -681,7 +683,7 @@ function StatCard({
 				</div>
 			</CardContent>
 		</Card>
-	)
+	);
 }
 
 function MetricBlock({ label, value }: { label: string; value: string }) {
@@ -692,7 +694,7 @@ function MetricBlock({ label, value }: { label: string; value: string }) {
 			</p>
 			<p className="mt-2 font-medium text-sm">{value}</p>
 		</div>
-	)
+	);
 }
 
 function EmptyStateCard({
@@ -714,7 +716,7 @@ function EmptyStateCard({
 				{description}
 			</p>
 		</div>
-	)
+	);
 }
 
 function getSelectableCountries(
@@ -727,7 +729,7 @@ function getSelectableCountries(
 
 		if (existing) {
 			existing.itemCount += 1;
-			continue
+			continue;
 		}
 
 		countries.set(item.site.country.code, {
@@ -735,20 +737,20 @@ function getSelectableCountries(
 			name: item.site.country.name,
 			currency: item.site.country.currency,
 			itemCount: 1,
-		})
+		});
 	}
 
 	return [...countries.values()].sort((left, right) =>
 		left.name.localeCompare(right.name),
-	)
+	);
 }
 
 function buildChartConfig(countries: SelectableCountry[]): ChartConfig {
-	return countries.reduce<ChartConfig>((config, country, index) => {
+	return countries.reduce<ChartConfig>((config, country) => {
 		config[country.code] = {
 			label: `${country.name} (${country.code})`,
-			color: CHART_COLORS[index % CHART_COLORS.length],
-		}
+			theme: getCountryChartTheme(country.code),
+		};
 
 		return config;
 	}, {});
@@ -761,7 +763,7 @@ function buildChartData(series: ProductHistoryResponse["series"]) {
 		for (const point of countrySeries.data) {
 			const existing = pointsByBucket.get(point.bucket) ?? {
 				bucket: point.bucket,
-			}
+			};
 			existing[countrySeries.countryCode] = point.price;
 			pointsByBucket.set(point.bucket, existing);
 		}
@@ -769,7 +771,7 @@ function buildChartData(series: ProductHistoryResponse["series"]) {
 
 	return [...pointsByBucket.values()].sort((left, right) =>
 		String(left.bucket).localeCompare(String(right.bucket)),
-	)
+	);
 }
 
 function getYAxisDomain(
@@ -783,7 +785,7 @@ function getYAxisDomain(
 				(value): value is number =>
 					typeof value === "number" && Number.isFinite(value),
 			),
-	)
+	);
 
 	if (values.length === 0) {
 		return [0, 1] as [number, number];
