@@ -52,7 +52,7 @@ function RouteComponent() {
 				</NavigationMenu>
 			</div>
 
-			<div className="m-4 min-h-dvh rounded-md border p-4">
+			<div className="m-4 mx-auto min-h-dvh max-w-6xl p-4">
 				<Outlet />
 			</div>
 		</div>

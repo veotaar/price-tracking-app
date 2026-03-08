@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { itemsOptions, useItems } from "@web/api/items";
 import {
 	productsOptions,
@@ -24,7 +24,7 @@ import {
 	AlertDialogTrigger,
 } from "@web/components/ui/alert-dialog";
 import { Badge } from "@web/components/ui/badge";
-import { Button } from "@web/components/ui/button";
+import { Button, buttonVariants } from "@web/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -188,6 +188,16 @@ function RouteComponent() {
 													</CardDescription>
 												</div>
 												<div className="flex flex-wrap items-center gap-2 sm:justify-end">
+													<Link
+														to="/app/product/$productId"
+														params={{ productId: product.id }}
+														className={buttonVariants({
+															variant: "outline",
+															size: "sm",
+														})}
+													>
+														View
+													</Link>
 													<EditProductDialog product={product} />
 													<ProductItemsDialog product={product} items={items} />
 													<DeleteProductButton product={product} />
