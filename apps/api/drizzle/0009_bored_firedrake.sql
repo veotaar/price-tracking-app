@@ -1,0 +1,1 @@
+ALTER TABLE "country" ADD COLUMN "eu_member" boolean DEFAULT true NOT NULL;

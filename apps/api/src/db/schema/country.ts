@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text } from "drizzle-orm/pg-core";
+import { boolean, pgTable, text } from "drizzle-orm/pg-core";
 import { idField, timestamps } from "../helpers";
 import { currencyEnum } from "./enums";
 import { site } from "./site";
@@ -9,6 +9,7 @@ export const country = pgTable("country", {
 	name: text("name").notNull().unique(),
 	code: text("code").notNull().unique(),
 	currency: currencyEnum("currency").notNull(),
+	euMember: boolean("eu_member").notNull().default(true),
 	...timestamps,
 });
 
