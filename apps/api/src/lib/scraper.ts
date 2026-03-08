@@ -63,7 +63,12 @@ export function extractText(html: string, cssSelector: string): string | null {
 	const el = $(cssSelector).first();
 	if (!el.length) return null;
 
-	const lines = el
+	const clonedEl = el.clone();
+	clonedEl
+		.find(".price_old-price, .price__old-price, .price__old_price, .old-price")
+		.remove();
+
+	const lines = clonedEl
 		.text()
 		.split("\n")
 		.map((line) => line.trim())
