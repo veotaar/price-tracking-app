@@ -1,10 +1,17 @@
 import { Elysia } from "elysia";
 import { betterAuth } from "../auth";
-import { addItemSchema, insertProductSchema, updateProductSchema } from "./model";
+import {
+	addItemSchema,
+	insertProductSchema,
+	productAnalyticsQuerySchema,
+	updateProductSchema,
+} from "./model";
 import {
 	createProduct,
 	deleteProduct,
 	getProduct,
+	getProductCurrentPrices,
+	getProductPriceHistory,
 	linkItemToProduct,
 	listProducts,
 	unlinkItemFromProduct,
@@ -27,15 +34,37 @@ export const products = new Elysia({ name: "products", prefix: "/products" })
 		return row;
 	})
 
-	// Create product (user auth required)
-	.post(
-		"/",
-		({ body }) => createProduct(body),
+	// Get price history for a product grouped by country
+	.get(
+		"/:id/history",
+		async ({ params, query, status }) => {
+			const row = await getProductPriceHistory(params.id, query);
+			if (!row) return status(404);
+			return row;
+		},
 		{
-			body: insertProductSchema,
-			auth: true,
+			query: productAnalyticsQuerySchema,
 		},
 	)
+
+	// Get current prices for a product
+	.get(
+		"/:id/currentPrices",
+		async ({ params, query, status }) => {
+			const row = await getProductCurrentPrices(params.id, query);
+			if (!row) return status(404);
+			return row;
+		},
+		{
+			query: productAnalyticsQuerySchema,
+		},
+	)
+
+	// Create product (user auth required)
+	.post("/", ({ body }) => createProduct(body), {
+		body: insertProductSchema,
+		auth: true,
+	})
 
 	// Update product (user auth required)
 	.put(
