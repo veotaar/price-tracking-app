@@ -21,11 +21,20 @@ export {
 } from "./mutations";
 export {
 	getProduct,
+	getProductCurrentPrices,
+	getProductHistory,
 	getProducts,
+	type ProductAnalyticsFilters,
+	type ProductCurrentPricesResponse,
 	type ProductDetailResponse,
+	type ProductHistoryResponse,
 	type ProductsListResponse,
+	productCurrentPricesOptions,
+	productHistoryOptions,
 	productOptions,
 	productsOptions,
 	useProduct,
+	useProductCurrentPrices,
+	useProductHistory,
 	useProducts,
 } from "./queries";
