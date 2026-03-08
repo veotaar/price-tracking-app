@@ -34,6 +34,30 @@ const countryCodesSchema = z.preprocess((value) => {
 		.filter(Boolean);
 }, z.array(z.string().length(2)).optional());
 
+const booleanQuerySchema = z.preprocess((value) => {
+	if (value === undefined || value === null || value === "") {
+		return undefined;
+	}
+
+	if (typeof value === "boolean") {
+		return value;
+	}
+
+	if (typeof value === "string") {
+		const normalizedValue = value.trim().toLowerCase();
+
+		if (normalizedValue === "true") {
+			return true;
+		}
+
+		if (normalizedValue === "false") {
+			return false;
+		}
+	}
+
+	return value;
+}, z.boolean().optional());
+
 export const productAnalyticsQuerySchema = z.object({
 	currency: z
 		.preprocess(
@@ -42,6 +66,7 @@ export const productAnalyticsQuerySchema = z.object({
 		)
 		.default("EUR"),
 	countryCodes: countryCodesSchema,
+	includeEuAverage: booleanQuerySchema.default(false),
 });
 
 export type InsertProduct = z.infer<typeof insertProductSchema>;

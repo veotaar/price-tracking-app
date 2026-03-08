@@ -68,6 +68,12 @@ import { type ReactNode, useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 const INITIAL_DISPLAY_CURRENCY: CurrencyCode = "EUR";
+const EU_AVERAGE_SERIES_KEY = "EU_AVG";
+const EU_AVERAGE_SERIES_NAME = "EU Average";
+const EU_AVERAGE_THEME = {
+	light: "oklch(0.49 0.1 248)",
+	dark: "oklch(0.76 0.09 248)",
+} as const;
 
 type SelectableCountry = {
 	code: string;
@@ -134,14 +140,16 @@ function RouteComponent() {
 	const [selectedCountryCodes, setSelectedCountryCodes] = useState<string[]>(
 		loaderData.defaultCountryCodes,
 	);
+	const [includeEuAverage, setIncludeEuAverage] = useState(false);
 
 	const analyticsFilters = useMemo(
 		() =>
 			({
 				currency: displayCurrency,
 				countryCodes: selectedCountryCodes,
+				includeEuAverage,
 			}) satisfies ProductAnalyticsFilters,
-		[displayCurrency, selectedCountryCodes],
+		[displayCurrency, includeEuAverage, selectedCountryCodes],
 	);
 
 	const {
@@ -157,6 +165,7 @@ function RouteComponent() {
 
 	const isInitialFilters =
 		displayCurrency === INITIAL_DISPLAY_CURRENCY &&
+		includeEuAverage === false &&
 		areStringArraysEqual(selectedCountryCodes, loaderData.defaultCountryCodes);
 
 	const history =
@@ -177,14 +186,12 @@ function RouteComponent() {
 	const selectedCountries = countries.filter((country) =>
 		selectedCountryCodes.includes(country.code),
 	);
+	const chartSeries = history?.series ?? [];
 	const chartConfig = useMemo(
-		() => buildChartConfig(selectedCountries),
-		[selectedCountries],
+		() => buildChartConfig(chartSeries),
+		[chartSeries],
 	);
-	const chartData = useMemo(
-		() => buildChartData(history?.series ?? []),
-		[history?.series],
-	);
+	const chartData = useMemo(() => buildChartData(chartSeries), [chartSeries]);
 	// const showPointDots = chartData.length <= 1;
 	const showPointDots = true;
 
@@ -192,10 +199,11 @@ function RouteComponent() {
 		() =>
 			getYAxisDomain(
 				chartData,
-				selectedCountries.map((country) => country.code),
+				chartSeries.map((series) => series.countryCode),
 			),
-		[chartData, selectedCountries],
+		[chartData, chartSeries],
 	);
+	const visibleChartSeriesCount = chartSeries.length;
 	const linkedItems = product.productItems.length;
 	const linkedSites = new Set(
 		product.productItems.map(({ item }) => item.site.id),
@@ -264,11 +272,12 @@ function RouteComponent() {
 						<CardTitle>Filters</CardTitle>
 						<CardDescription>
 							The selected countries and display currency are shared between the
-							price history chart and the latest price list.
+							price history chart and the latest price list. You can also
+							overlay the EU average on the chart.
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
-						<FieldGroup className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)_auto] lg:items-end">
+						<FieldGroup className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)_220px_auto] lg:items-end">
 							<Field>
 								<FieldLabel htmlFor="product-display-currency">
 									Display currency
@@ -320,14 +329,34 @@ function RouteComponent() {
 								/>
 							</Field>
 
+							<Field>
+								<FieldLabel htmlFor="product-eu-average-line">
+									Chart overlay
+								</FieldLabel>
+								<label className="flex min-h-10 items-center gap-3 rounded-lg border bg-background px-3 py-2 text-sm">
+									<input
+										id="product-eu-average-line"
+										type="checkbox"
+										checked={includeEuAverage}
+										onChange={(event) =>
+											setIncludeEuAverage(event.target.checked)
+										}
+										className="size-4 rounded border-input accent-primary"
+									/>
+									<span>Show EU average line</span>
+								</label>
+							</Field>
+
 							<Button
 								variant="outline"
 								onClick={() => {
 									setDisplayCurrency(INITIAL_DISPLAY_CURRENCY);
 									setSelectedCountryCodes(defaultCountryCodes);
+									setIncludeEuAverage(false);
 								}}
 								disabled={
 									displayCurrency === INITIAL_DISPLAY_CURRENCY &&
+									includeEuAverage === false &&
 									areStringArraysEqual(
 										selectedCountryCodes,
 										defaultCountryCodes,
@@ -348,8 +377,9 @@ function RouteComponent() {
 							<div>
 								<CardTitle>Lowest Price Over Time</CardTitle>
 								<CardDescription>
-									One line per country, converted to {displayCurrency} using the
-									historical exchange rate active at each price timestamp.
+									One line per selected country, with an optional EU average
+									overlay, converted to {displayCurrency} using the historical
+									exchange rate active at each price timestamp.
 								</CardDescription>
 							</div>
 							{isHistoryFetching ? (
@@ -370,10 +400,10 @@ function RouteComponent() {
 										"The chart data could not be loaded."}
 								</AlertDescription>
 							</Alert>
-						) : selectedCountryCodes.length === 0 ? (
+						) : selectedCountryCodes.length === 0 && !includeEuAverage ? (
 							<EmptyStateCard
-								title="No countries selected"
-								description="Select at least one country to render the lowest-price history chart."
+								title="No chart series selected"
+								description="Select at least one country or enable the EU average line to render the price history chart."
 								icon={<ChartSplineIcon className="size-5" />}
 							/>
 						) : !history ||
@@ -436,20 +466,28 @@ function RouteComponent() {
 											}
 										/>
 										<ChartLegend content={<ChartLegendContent />} />
-										{selectedCountries.map((country) => (
+										{chartSeries.map((series) => (
 											<Line
-												key={country.code}
-												dataKey={country.code}
+												key={series.countryCode}
+												dataKey={series.countryCode}
 												type="monotone"
-												stroke={`var(--color-${country.code})`}
-												strokeWidth={1.5}
-												strokeDasharray="6 5"
+												stroke={`var(--color-${series.countryCode})`}
+												strokeWidth={
+													series.countryCode === EU_AVERAGE_SERIES_KEY
+														? 2.5
+														: 1.5
+												}
+												strokeDasharray={
+													series.countryCode === EU_AVERAGE_SERIES_KEY
+														? undefined
+														: "6 5"
+												}
 												dot={
 													showPointDots
 														? {
 																r: 3,
 																strokeWidth: 1.5,
-																fill: `var(--color-${country.code})`,
+																fill: `var(--color-${series.countryCode})`,
 															}
 														: false
 												}
@@ -462,8 +500,8 @@ function RouteComponent() {
 
 								<div className="grid gap-3 rounded-xl border bg-muted/20 px-4 py-4 md:grid-cols-3">
 									<MetricBlock
-										label="Visible countries"
-										value={String(selectedCountries.length)}
+										label="Visible chart series"
+										value={String(visibleChartSeriesCount)}
 									/>
 									<MetricBlock
 										label="Display currency"
@@ -745,11 +783,19 @@ function getSelectableCountries(
 	);
 }
 
-function buildChartConfig(countries: SelectableCountry[]): ChartConfig {
-	return countries.reduce<ChartConfig>((config, country) => {
-		config[country.code] = {
-			label: `${country.name} (${country.code})`,
-			theme: getCountryChartTheme(country.code),
+function buildChartConfig(
+	series: ProductHistoryResponse["series"],
+): ChartConfig {
+	return series.reduce<ChartConfig>((config, entry) => {
+		config[entry.countryCode] = {
+			label:
+				entry.countryCode === EU_AVERAGE_SERIES_KEY
+					? EU_AVERAGE_SERIES_NAME
+					: `${entry.countryName} (${entry.countryCode})`,
+			theme:
+				entry.countryCode === EU_AVERAGE_SERIES_KEY
+					? EU_AVERAGE_THEME
+					: getCountryChartTheme(entry.countryCode),
 		};
 
 		return config;

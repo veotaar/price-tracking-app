@@ -16,11 +16,13 @@ export type ProductsListFilters = {
 export type ProductAnalyticsFilters = {
 	currency?: CurrencyCode;
 	countryCodes?: string[];
+	includeEuAverage?: boolean;
 };
 
 function buildAnalyticsQuery(filters: ProductAnalyticsFilters = {}) {
 	return {
 		currency: filters.currency ?? "EUR",
+		includeEuAverage: filters.includeEuAverage ?? false,
 		...(filters.countryCodes?.length
 			? { countryCodes: filters.countryCodes }
 			: {}),
@@ -124,7 +126,10 @@ export function productHistoryOptions(
 	return queryOptions({
 		queryKey: ["product-history", productId, filters],
 		queryFn: () => getProductHistory(productId, filters),
-		enabled: !!productId && (filters.countryCodes?.length ?? 1) > 0,
+		enabled:
+			!!productId &&
+			((filters.countryCodes?.length ?? 0) > 0 ||
+				filters.includeEuAverage === true),
 	});
 }
 

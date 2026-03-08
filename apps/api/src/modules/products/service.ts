@@ -27,6 +27,9 @@ export type ProductPriceHistoryResponse = {
 	series: ProductPriceHistorySeries[];
 };
 
+const EU_AVERAGE_SERIES_KEY = "EU_AVG";
+const EU_AVERAGE_SERIES_NAME = "EU Average";
+
 export type ProductCurrentPriceRow = {
 	itemId: string;
 	itemName: string | null;
@@ -90,6 +93,45 @@ function getCountryFilterSql(
 	}
 
 	return sql`AND c.code IN (${sql.join(
+		countryCodes.map((countryCode) => sql`${countryCode}`),
+		sql`, `,
+	)})`;
+}
+
+function getHistoryScopeSql(
+	countryCodes: ProductAnalyticsQuery["countryCodes"],
+	includeEuAverage: boolean,
+) {
+	const conditions = [] as ReturnType<typeof sql>[];
+
+	if (countryCodes?.length) {
+		conditions.push(
+			sql`c.code IN (${sql.join(
+				countryCodes.map((countryCode) => sql`${countryCode}`),
+				sql`, `,
+			)})`,
+		);
+	}
+
+	if (includeEuAverage) {
+		conditions.push(sql`c.eu_member = true`);
+	}
+
+	if (conditions.length === 0) {
+		return sql`AND 1 = 0`;
+	}
+
+	return sql`AND (${sql.join(conditions, sql` OR `)})`;
+}
+
+function getSeriesCountryFilterSql(
+	countryCodes: ProductAnalyticsQuery["countryCodes"],
+) {
+	if (!countryCodes?.length) {
+		return sql.empty();
+	}
+
+	return sql`AND "countryCode" IN (${sql.join(
 		countryCodes.map((countryCode) => sql`${countryCode}`),
 		sql`, `,
 	)})`;
@@ -162,7 +204,7 @@ export async function getProduct(id: string) {
 
 export async function getProductPriceHistory(
 	productId: string,
-	{ currency, countryCodes }: ProductAnalyticsQuery,
+	{ currency, countryCodes, includeEuAverage }: ProductAnalyticsQuery,
 ): Promise<ProductPriceHistoryResponse | null> {
 	const product = await getActiveProductRecord(productId);
 
@@ -170,7 +212,16 @@ export async function getProductPriceHistory(
 		return null;
 	}
 
-	const countryFilterSql = getCountryFilterSql(countryCodes);
+	if (!countryCodes?.length && !includeEuAverage) {
+		return {
+			productId,
+			displayCurrency: currency,
+			series: [],
+		};
+	}
+
+	const historyScopeSql = getHistoryScopeSql(countryCodes, includeEuAverage);
+	const seriesCountryFilterSql = getSeriesCountryFilterSql(countryCodes);
 	const historyBoundsRows = await db.execute(sql<
 		Array<{
 			minTime: Date | string | null;
@@ -193,7 +244,7 @@ export async function getProductPriceHistory(
 		JOIN price p ON p.item_id = i.id
 		WHERE pi.product_id = ${productId}
 			AND pi.deleted_at IS NULL
-			${countryFilterSql}
+			${historyScopeSql}
 	`);
 	const historyBounds = historyBoundsSchema.parse(historyBoundsRows[0] ?? null);
 	const bucketInterval = getHistoryBucketInterval(
@@ -201,6 +252,43 @@ export async function getProductPriceHistory(
 		historyBounds?.maxTime ?? null,
 	);
 	const bucketIntervalSql = sql.raw(`INTERVAL '${bucketInterval}'`);
+
+	const seriesStatements = [] as ReturnType<typeof sql>[];
+
+	if (countryCodes?.length) {
+		seriesStatements.push(sql`
+			SELECT
+				"bucket",
+				"countryCode",
+				"countryName",
+				MIN("price") AS "price"
+			FROM converted_prices
+			WHERE "price" IS NOT NULL
+				${seriesCountryFilterSql}
+			GROUP BY "bucket", "countryCode", "countryName"
+		`);
+	}
+
+	if (includeEuAverage) {
+		seriesStatements.push(sql`
+			SELECT
+				"bucket",
+				${EU_AVERAGE_SERIES_KEY} AS "countryCode",
+				${EU_AVERAGE_SERIES_NAME} AS "countryName",
+				AVG("countryPrice") AS "price"
+			FROM (
+				SELECT
+					"bucket",
+					"countryCode",
+					MIN("price") AS "countryPrice"
+				FROM converted_prices
+				WHERE "price" IS NOT NULL
+					AND "euMember" = true
+				GROUP BY "bucket", "countryCode"
+			) eu_country_prices
+			GROUP BY "bucket"
+		`);
+	}
 
 	const rows = await db.execute(sql<
 		Array<{
@@ -215,6 +303,7 @@ export async function getProductPriceHistory(
 				time_bucket(${bucketIntervalSql}, p.time) AS "bucket",
 				c.code AS "countryCode",
 				c.name AS "countryName",
+				c.eu_member AS "euMember",
 				CASE
 					WHEN p.currency = ${currency} THEN p.price::numeric
 					WHEN p.currency = 'EUR' AND er_target.rate IS NOT NULL
@@ -254,16 +343,14 @@ export async function getProductPriceHistory(
 			) er_target ON true
 			WHERE pi.product_id = ${productId}
 				AND pi.deleted_at IS NULL
-				${countryFilterSql}
+				${historyScopeSql}
 		)
 		SELECT
 			"bucket",
 			"countryCode",
 			"countryName",
-			MIN("price") AS "price"
-		FROM converted_prices
-		WHERE "price" IS NOT NULL
-		GROUP BY "bucket", "countryCode", "countryName"
+			"price"
+		FROM (${sql.join(seriesStatements, sql` UNION ALL `)}) history_series
 		ORDER BY "bucket" ASC, "countryCode" ASC
 	`);
 
