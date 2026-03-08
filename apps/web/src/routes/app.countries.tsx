@@ -69,6 +69,9 @@ function RouteComponent() {
 	const currencyCount = new Set(
 		sortedCountries.map((country) => country.currency),
 	).size;
+	const euMemberCount = sortedCountries.filter(
+		(country) => country.euMember,
+	).length;
 
 	return (
 		<div className="space-y-6">
@@ -129,10 +132,8 @@ function RouteComponent() {
 					<CardHeader>
 						<div className="flex items-center justify-between gap-3">
 							<div>
-								<CardDescription>Last listed market</CardDescription>
-								<CardTitle className="mt-2 text-2xl">
-									{sortedCountries.at(-1)?.name ?? "None yet"}
-								</CardTitle>
+								<CardDescription>EU member markets</CardDescription>
+								<CardTitle className="mt-2 text-3xl">{euMemberCount}</CardTitle>
 							</div>
 							<div className="rounded-xl bg-primary/10 p-3 text-primary">
 								<MapPinnedIcon className="size-5" />
@@ -176,9 +177,17 @@ function RouteComponent() {
 											<p className="truncate font-medium text-base">
 												{country.name}
 											</p>
-											<p className="text-muted-foreground text-sm">
-												Configured market for pricing and site assignment
-											</p>
+											<div className="flex flex-wrap items-center gap-2 text-sm">
+												<p className="text-muted-foreground">
+													Configured market for pricing and site assignment
+												</p>
+												<Badge
+													variant={country.euMember ? "default" : "secondary"}
+													className="rounded-md px-2 py-0.5"
+												>
+													{country.euMember ? "EU member" : "Non-EU"}
+												</Badge>
+											</div>
 										</div>
 
 										<div className="flex flex-col gap-1 md:items-start">

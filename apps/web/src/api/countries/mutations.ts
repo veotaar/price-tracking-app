@@ -4,7 +4,7 @@ import { client } from "@web/lib/api-client";
 
 export type CreateCountryInput = Pick<
 	Treaty.Data<typeof client.api.countries.post>,
-	"name" | "code" | "currency"
+	"name" | "code" | "currency" | "euMember"
 >;
 
 export type UpdateCountryInput = CreateCountryInput & {
@@ -15,11 +15,13 @@ export async function createCountry({
 	name,
 	code,
 	currency,
+	euMember,
 }: CreateCountryInput) {
 	const response = await client.api.countries.post({
 		name,
 		code,
 		currency,
+		euMember,
 	});
 
 	if (response.error) {
@@ -36,11 +38,13 @@ export async function updateCountry({
 	name,
 	code,
 	currency,
+	euMember,
 }: UpdateCountryInput) {
 	const response = await client.api.countries({ id: countryId }).put({
 		name,
 		code,
 		currency,
+		euMember,
 	});
 
 	if (response.error) {

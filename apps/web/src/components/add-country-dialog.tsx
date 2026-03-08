@@ -21,10 +21,12 @@ import {
 } from "@web/components/ui/dialog";
 import {
 	Field,
+	FieldContent,
 	FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
+	FieldTitle,
 } from "@web/components/ui/field";
 import { Input } from "@web/components/ui/input";
 import {
@@ -56,6 +58,7 @@ export const createCountrySchema = type({
 	currency: type("3 <= string <= 3").configure({
 		message: () => "Select a 3-letter currency code",
 	}),
+	euMember: "boolean",
 });
 
 const currencyOptions = [
@@ -97,6 +100,7 @@ type CountryDialogValues = {
 	name: string;
 	code: string;
 	currency: string;
+	euMember: boolean;
 };
 
 type CountryDialogProps = {
@@ -114,6 +118,7 @@ type EditableCountry = {
 	name: string;
 	code: string;
 	currency: CreateCountryInput["currency"];
+	euMember: boolean;
 };
 
 function CountryDialog({
@@ -158,6 +163,7 @@ function CountryDialog({
 				currency: value.currency
 					.trim()
 					.toUpperCase() as CreateCountryInput["currency"],
+				euMember: value.euMember,
 			};
 
 			try {
@@ -350,6 +356,34 @@ function CountryDialog({
 							}}
 						/>
 
+						<form.Field
+							name="euMember"
+							// biome-ignore lint/correctness/noChildrenProp: this is how tanstack form works
+							children={(field) => (
+								<Field orientation="horizontal">
+									<FieldLabel htmlFor="country-eu-member">
+										<input
+											id="country-eu-member"
+											type="checkbox"
+											checked={field.state.value}
+											onBlur={field.handleBlur}
+											onChange={(event) =>
+												field.handleChange(event.target.checked)
+											}
+											className="mt-0.5 size-4 rounded border-input accent-primary"
+										/>
+										<FieldContent>
+											<FieldTitle>EU member state</FieldTitle>
+											<FieldDescription>
+												Use this for VAT and regional market rules that depend
+												on EU membership.
+											</FieldDescription>
+										</FieldContent>
+									</FieldLabel>
+								</Field>
+							)}
+						/>
+
 						<div className="rounded-xl border bg-muted/30 p-4">
 							<div className="flex items-start gap-3">
 								<div className="rounded-lg bg-primary/10 p-2 text-primary">
@@ -404,6 +438,7 @@ export function AddCountryDialog() {
 				name: "",
 				code: "",
 				currency: "",
+				euMember: true,
 			}}
 			title="Add country"
 			description="Create a new country record with its ISO-style code and billing currency so sites can be assigned to the correct market."
@@ -427,6 +462,7 @@ export function EditCountryDialog({ country }: { country: EditableCountry }) {
 				name: country.name,
 				code: country.code,
 				currency: country.currency,
+				euMember: country.euMember,
 			}}
 			title={`Edit ${country.name}`}
 			description="Update the country name, code, or currency. Changes apply anywhere this market is used in the admin UI."
