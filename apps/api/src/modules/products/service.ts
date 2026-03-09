@@ -252,6 +252,10 @@ export async function getProductPriceHistory(
 		historyBounds?.maxTime ?? null,
 	);
 	const bucketIntervalSql = sql.raw(`INTERVAL '${bucketInterval}'`);
+	const gapfillStart =
+		historyBounds.minTime?.toISOString() ?? new Date().toISOString();
+	const gapfillEnd =
+		historyBounds.maxTime?.toISOString() ?? new Date().toISOString();
 
 	const seriesStatements = [] as ReturnType<typeof sql>[];
 
@@ -262,7 +266,7 @@ export async function getProductPriceHistory(
 				"countryCode",
 				"countryName",
 				MIN("price") AS "price"
-			FROM converted_prices
+			FROM gapfilled_item_prices
 			WHERE "price" IS NOT NULL
 				${seriesCountryFilterSql}
 			GROUP BY "bucket", "countryCode", "countryName"
@@ -281,11 +285,12 @@ export async function getProductPriceHistory(
 					"bucket",
 					"countryCode",
 					MIN("price") AS "countryPrice"
-				FROM converted_prices
+				FROM gapfilled_item_prices
 				WHERE "price" IS NOT NULL
 					AND "euMember" = true
 				GROUP BY "bucket", "countryCode"
-			) eu_country_prices
+			) eu_gapfilled
+			WHERE "countryPrice" IS NOT NULL
 			GROUP BY "bucket"
 		`);
 	}
@@ -300,7 +305,8 @@ export async function getProductPriceHistory(
 	>`
 		WITH converted_prices AS (
 			SELECT
-				time_bucket(${bucketIntervalSql}, p.time) AS "bucket",
+				i.id AS "itemId",
+				p.time AS "time",
 				c.code AS "countryCode",
 				c.name AS "countryName",
 				c.eu_member AS "euMember",
@@ -344,6 +350,20 @@ export async function getProductPriceHistory(
 			WHERE pi.product_id = ${productId}
 				AND pi.deleted_at IS NULL
 				${historyScopeSql}
+		),
+		gapfilled_item_prices AS (
+			SELECT
+				time_bucket_gapfill(${bucketIntervalSql}, "time",
+					start => ${gapfillStart}::timestamptz,
+					finish => ${gapfillEnd}::timestamptz + ${bucketIntervalSql}
+				) AS "bucket",
+				"itemId",
+				"countryCode",
+				"countryName",
+				"euMember",
+				locf(MIN("price")) AS "price"
+			FROM converted_prices
+			GROUP BY "bucket", "itemId", "countryCode", "countryName", "euMember"
 		)
 		SELECT
 			"bucket",
