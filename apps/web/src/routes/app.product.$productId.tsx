@@ -76,6 +76,8 @@ import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 const INITIAL_DISPLAY_CURRENCY: CurrencyCode = "EUR";
 const EU_AVERAGE_SERIES_KEY = "EU_AVG";
 const EU_AVERAGE_SERIES_NAME = "EU Average";
+const MAX_VISIBLE_DOTS = 120;
+const MAX_ACCESSIBLE_POINTS = 400;
 const EU_AVERAGE_THEME = {
 	light: "oklch(0.3665 0.2103 268.66)",
 	dark: "oklch(0.497 0.2103 268.66)",
@@ -87,6 +89,18 @@ type SelectableCountry = {
 	currency: CurrencyCode;
 	itemCount: number;
 };
+
+type ChartDataPoint = {
+	bucket: string;
+	bucketTimestamp: number;
+	[key: string]: number | string;
+};
+
+const currencyFormatters = new Map<CurrencyCode, Intl.NumberFormat>();
+const compactCurrencyFormatters = new Map<CurrencyCode, Intl.NumberFormat>();
+const shortDateFormatters = new Map<boolean, Intl.DateTimeFormat>();
+const longDateFormatters = new Map<boolean, Intl.DateTimeFormat>();
+const timestampFormatters = new Map<boolean, Intl.DateTimeFormat>();
 
 export const Route = createFileRoute("/app/product/$productId")({
 	loader: async ({ context: { queryClient }, params }) => {
@@ -139,7 +153,10 @@ function RouteComponent() {
 	const loaderData = Route.useLoaderData();
 	const { data: product = loaderData.product } = useProduct(productId);
 	const countries = useMemo(() => getSelectableCountries(product), [product]);
-	const defaultCountryCodes = countries.map((country) => country.code);
+	const defaultCountryCodes = useMemo(
+		() => countries.map((country) => country.code),
+		[countries],
+	);
 	const [displayCurrency, setDisplayCurrency] = useState<CurrencyCode>(
 		INITIAL_DISPLAY_CURRENCY,
 	);
@@ -189,25 +206,35 @@ function RouteComponent() {
 					| undefined)
 			: undefined);
 
-	const selectedCountries = countries.filter((country) =>
-		selectedCountryCodes.includes(country.code),
+	const selectedCountryCodeSet = useMemo(
+		() => new Set(selectedCountryCodes),
+		[selectedCountryCodes],
+	);
+	const selectedCountries = useMemo(
+		() =>
+			countries.filter((country) => selectedCountryCodeSet.has(country.code)),
+		[countries, selectedCountryCodeSet],
 	);
 	const chartSeries = history?.series ?? [];
+	const chartSeriesKeys = useMemo(
+		() => chartSeries.map((series) => series.countryCode),
+		[chartSeries],
+	);
+	const totalHistoryPoints = useMemo(
+		() => chartSeries.reduce((total, series) => total + series.data.length, 0),
+		[chartSeries],
+	);
 	const chartConfig = useMemo(
 		() => buildChartConfig(chartSeries),
 		[chartSeries],
 	);
 	const chartData = useMemo(() => buildChartData(chartSeries), [chartSeries]);
-	// const showPointDots = chartData.length <= 1;
-	const showPointDots = true;
+	const showPointDots = totalHistoryPoints <= MAX_VISIBLE_DOTS;
+	const enableAccessibilityLayer = totalHistoryPoints <= MAX_ACCESSIBLE_POINTS;
 
 	const yAxisDomain = useMemo(
-		() =>
-			getYAxisDomain(
-				chartData,
-				chartSeries.map((series) => series.countryCode),
-			),
-		[chartData, chartSeries],
+		() => getYAxisDomain(chartData, chartSeriesKeys),
+		[chartData, chartSeriesKeys],
 	);
 	const visibleChartSeriesCount = chartSeries.length;
 	const linkedItems = product.productItems.length;
@@ -339,7 +366,7 @@ function RouteComponent() {
 						<>
 							<ChartContainer config={chartConfig} className="h-90 w-full">
 								<LineChart
-									accessibilityLayer
+									accessibilityLayer={enableAccessibilityLayer}
 									data={chartData}
 									margin={{ left: 12, right: 12, top: 12 }}
 								>
@@ -391,6 +418,7 @@ function RouteComponent() {
 											key={series.countryCode}
 											dataKey={series.countryCode}
 											type="monotone"
+											isAnimationActive={false}
 											stroke={`var(--color-${series.countryCode})`}
 											strokeWidth={
 												series.countryCode === EU_AVERAGE_SERIES_KEY ? 4 : 1.5
@@ -417,8 +445,7 @@ function RouteComponent() {
 							</ChartContainer>
 
 							<p className="text-muted-foreground text-xs">
-								{visibleChartSeriesCount} series ·{" "}
-								{history.series.reduce((t, s) => t + s.data.length, 0)} data
+								{visibleChartSeriesCount} series · {totalHistoryPoints} data
 								points · converted to {displayCurrency}
 							</p>
 						</>
@@ -639,12 +666,13 @@ function buildChartConfig(
 }
 
 function buildChartData(series: ProductHistoryResponse["series"]) {
-	const pointsByBucket = new Map<string, Record<string, number | string>>();
+	const pointsByBucket = new Map<string, ChartDataPoint>();
 
 	for (const countrySeries of series) {
 		for (const point of countrySeries.data) {
 			const existing = pointsByBucket.get(point.bucket) ?? {
 				bucket: point.bucket,
+				bucketTimestamp: new Date(point.bucket).getTime(),
 			};
 			existing[countrySeries.countryCode] = point.price;
 			pointsByBucket.set(point.bucket, existing);
@@ -652,9 +680,7 @@ function buildChartData(series: ProductHistoryResponse["series"]) {
 	}
 
 	return [...pointsByBucket.values()].sort(
-		(left, right) =>
-			new Date(String(left.bucket)).getTime() -
-			new Date(String(right.bucket)).getTime(),
+		(left, right) => left.bucketTimestamp - right.bucketTimestamp,
 	);
 }
 
@@ -702,20 +728,11 @@ function roundAxisValue(value: number, roundUp: boolean) {
 }
 
 function formatCurrencyValue(value: number, currency: CurrencyCode) {
-	return new Intl.NumberFormat(undefined, {
-		style: "currency",
-		currency,
-		maximumFractionDigits: 2,
-	}).format(value);
+	return getCurrencyFormatter(currency).format(value);
 }
 
 function formatCompactCurrency(value: number, currency: CurrencyCode) {
-	return new Intl.NumberFormat(undefined, {
-		style: "currency",
-		currency,
-		notation: "compact",
-		maximumFractionDigits: 1,
-	}).format(value);
+	return getCompactCurrencyFormatter(currency).format(value);
 }
 
 function parseDateLike(value: unknown) {
@@ -743,16 +760,7 @@ function formatShortDate(value: unknown) {
 		parsedDate.getUTCMinutes() !== 0 ||
 		parsedDate.getUTCSeconds() !== 0;
 
-	return new Intl.DateTimeFormat(undefined, {
-		month: "short",
-		day: "numeric",
-		...(hasTimeComponent
-			? {
-					hour: "numeric",
-					minute: "2-digit",
-				}
-			: {}),
-	}).format(parsedDate);
+	return getShortDateFormatter(hasTimeComponent).format(parsedDate);
 }
 
 function formatLongDate(value: unknown) {
@@ -767,14 +775,7 @@ function formatLongDate(value: unknown) {
 		parsedDate.getUTCMinutes() !== 0 ||
 		parsedDate.getUTCSeconds() !== 0;
 
-	return new Intl.DateTimeFormat(undefined, {
-		dateStyle: "medium",
-		...(hasTimeComponent
-			? {
-					timeStyle: "short",
-				}
-			: {}),
-	}).format(parsedDate);
+	return getLongDateFormatter(hasTimeComponent).format(parsedDate);
 }
 
 function formatTimestamp(value: unknown) {
@@ -784,10 +785,90 @@ function formatTimestamp(value: unknown) {
 		return typeof value === "string" ? value : "-";
 	}
 
-	return new Intl.DateTimeFormat(undefined, {
-		dateStyle: "medium",
-		timeStyle: "short",
-	}).format(parsedDate);
+	return getTimestampFormatter(true).format(parsedDate);
+}
+
+function getCurrencyFormatter(currency: CurrencyCode) {
+	let formatter = currencyFormatters.get(currency);
+
+	if (!formatter) {
+		formatter = new Intl.NumberFormat(undefined, {
+			style: "currency",
+			currency,
+			maximumFractionDigits: 2,
+		});
+		currencyFormatters.set(currency, formatter);
+	}
+
+	return formatter;
+}
+
+function getCompactCurrencyFormatter(currency: CurrencyCode) {
+	let formatter = compactCurrencyFormatters.get(currency);
+
+	if (!formatter) {
+		formatter = new Intl.NumberFormat(undefined, {
+			style: "currency",
+			currency,
+			notation: "compact",
+			maximumFractionDigits: 1,
+		});
+		compactCurrencyFormatters.set(currency, formatter);
+	}
+
+	return formatter;
+}
+
+function getShortDateFormatter(hasTimeComponent: boolean) {
+	let formatter = shortDateFormatters.get(hasTimeComponent);
+
+	if (!formatter) {
+		formatter = new Intl.DateTimeFormat(undefined, {
+			month: "short",
+			day: "numeric",
+			...(hasTimeComponent
+				? {
+						hour: "numeric",
+						minute: "2-digit",
+					}
+				: {}),
+		});
+		shortDateFormatters.set(hasTimeComponent, formatter);
+	}
+
+	return formatter;
+}
+
+function getLongDateFormatter(hasTimeComponent: boolean) {
+	let formatter = longDateFormatters.get(hasTimeComponent);
+
+	if (!formatter) {
+		formatter = new Intl.DateTimeFormat(undefined, {
+			dateStyle: "medium",
+			...(hasTimeComponent
+				? {
+						timeStyle: "short",
+					}
+				: {}),
+		});
+		longDateFormatters.set(hasTimeComponent, formatter);
+	}
+
+	return formatter;
+}
+
+function getTimestampFormatter(hasTimeComponent: boolean) {
+	let formatter = timestampFormatters.get(hasTimeComponent);
+
+	if (!formatter) {
+		formatter = new Intl.DateTimeFormat(undefined, {
+			dateStyle: "medium",
+			timeStyle: "short",
+		});
+		timestampFormatters.set(hasTimeComponent, formatter);
+	}
+
+	return formatter;
 }
 
 function areStringArraysEqual(left: string[], right: string[]) {
