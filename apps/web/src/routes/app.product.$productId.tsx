@@ -58,26 +58,46 @@ import {
 	TableHeader,
 	TableRow,
 } from "@web/components/ui/table";
+import {
+	Tabs,
+	TabsContent,
+	TabsList,
+	TabsTrigger,
+} from "@web/components/ui/tabs";
 import { getCountryChartTheme } from "@web/lib/chart-colors";
 import { currencyCodes } from "@web/lib/currencies";
 import { cn } from "@web/lib/utils";
 import {
 	ArrowLeftIcon,
+	BarChart3Icon,
 	ChartSplineIcon,
 	CoinsIcon,
 	ExternalLinkIcon,
+	ListIcon,
 	RefreshCwIcon,
 	RotateCcwIcon,
 	TriangleAlertIcon,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
+import {
+	Bar,
+	BarChart,
+	CartesianGrid,
+	Cell,
+	LabelList,
+	Line,
+	LineChart,
+	XAxis,
+	YAxis,
+} from "recharts";
 
 const INITIAL_DISPLAY_CURRENCY: CurrencyCode = "EUR";
 const EU_AVERAGE_SERIES_KEY = "EU_AVG";
 const EU_AVERAGE_SERIES_NAME = "EU Average";
 const MAX_VISIBLE_DOTS = 120;
 const MAX_ACCESSIBLE_POINTS = 400;
+const CURRENT_PRICES_CHART_MIN_HEIGHT = 320;
+const CURRENT_PRICES_CHART_ROW_HEIGHT = 42;
 const EU_AVERAGE_THEME = {
 	light: "oklch(0.3665 0.2103 268.66)",
 	dark: "oklch(0.497 0.2103 268.66)",
@@ -94,6 +114,19 @@ type ChartDataPoint = {
 	bucket: string;
 	bucketTimestamp: number;
 	[key: string]: number | string;
+};
+
+type CurrentPriceChartRow = {
+	itemId: string;
+	label: string;
+	fullLabel: string;
+	countryCode: string;
+	siteName: string;
+	convertedPrice: number;
+	originalPrice: number;
+	originalCurrency: CurrencyCode;
+	itemUrl: string;
+	updatedAt: unknown;
 };
 
 const currencyFormatters = new Map<CurrencyCode, Intl.NumberFormat>();
@@ -235,6 +268,18 @@ function RouteComponent() {
 	const yAxisDomain = useMemo(
 		() => getYAxisDomain(chartData, chartSeriesKeys),
 		[chartData, chartSeriesKeys],
+	);
+	const currentPricesChartConfig = useMemo(
+		() => buildCurrentPricesChartConfig(currentPrices?.data ?? []),
+		[currentPrices?.data],
+	);
+	const currentPricesChartData = useMemo(
+		() => buildCurrentPricesChartData(currentPrices?.data ?? []),
+		[currentPrices?.data],
+	);
+	const currentPricesChartHeight = Math.max(
+		CURRENT_PRICES_CHART_MIN_HEIGHT,
+		currentPricesChartData.length * CURRENT_PRICES_CHART_ROW_HEIGHT,
 	);
 	const visibleChartSeriesCount = chartSeries.length;
 	const linkedItems = product.productItems.length;
@@ -461,85 +506,210 @@ function RouteComponent() {
 						{isCurrentPricesFetching && <Spinner className="size-4" />}
 					</div>
 				</CardHeader>
-				<CardContent className="p-0">
+				<CardContent className="p-4">
 					{currentPricesError ? (
-						<div className="p-4">
-							<Alert variant="destructive">
-								<TriangleAlertIcon />
-								<AlertTitle>Failed to load current prices</AlertTitle>
-								<AlertDescription>
-									{currentPricesError.message ||
-										"Price list could not be loaded."}
-								</AlertDescription>
-							</Alert>
-						</div>
+						<Alert variant="destructive">
+							<TriangleAlertIcon />
+							<AlertTitle>Failed to load current prices</AlertTitle>
+							<AlertDescription>
+								{currentPricesError.message ||
+									"Price list could not be loaded."}
+							</AlertDescription>
+						</Alert>
 					) : selectedCountryCodes.length === 0 ? (
-						<div className="p-4">
-							<EmptyBlock
-								icon={<CoinsIcon className="size-5" />}
-								message="Select at least one country to see prices"
-							/>
-						</div>
+						<EmptyBlock
+							icon={<CoinsIcon className="size-5" />}
+							message="Select at least one country to see prices"
+						/>
 					) : !currentPrices || currentPrices.data.length === 0 ? (
-						<div className="p-4">
-							<EmptyBlock
-								icon={<CoinsIcon className="size-5" />}
-								message="No current prices for the selected countries"
-							/>
-						</div>
+						<EmptyBlock
+							icon={<CoinsIcon className="size-5" />}
+							message="No current prices for the selected countries"
+						/>
 					) : (
-						<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Item</TableHead>
-									<TableHead>Site</TableHead>
-									<TableHead>Country</TableHead>
-									<TableHead className="text-right">
-										Price ({displayCurrency})
-									</TableHead>
-									<TableHead className="text-right">Native</TableHead>
-									<TableHead>Updated</TableHead>
-									<TableHead className="w-10" />
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{currentPrices.data.map((row) => (
-									<TableRow key={row.itemId}>
-										<TableCell className="max-w-48 truncate font-medium">
-											{row.itemName || row.itemUrl}
-										</TableCell>
-										<TableCell>{row.siteName}</TableCell>
-										<TableCell>
-											<Badge variant="outline">{row.countryCode}</Badge>
-										</TableCell>
-										<TableCell className="text-right font-mono tabular-nums">
-											{formatCurrencyValue(row.convertedPrice, displayCurrency)}
-										</TableCell>
-										<TableCell className="text-right font-mono text-muted-foreground tabular-nums">
-											{formatCurrencyValue(
-												row.originalPrice,
-												row.originalCurrency,
-											)}
-										</TableCell>
-										<TableCell className="text-muted-foreground text-xs">
-											{formatTimestamp(row.time)}
-										</TableCell>
-										<TableCell>
-											<a
-												href={row.itemUrl}
-												target="_blank"
-												rel="noreferrer"
-												className={cn(
-													buttonVariants({ variant: "ghost", size: "icon-xs" }),
-												)}
+						<Tabs defaultValue="list" className="gap-4">
+							<div className="flex flex-wrap items-center justify-between gap-3">
+								<TabsList variant="line">
+									<TabsTrigger value="list">
+										<ListIcon className="size-4" />
+										List
+									</TabsTrigger>
+									<TabsTrigger value="chart">
+										<BarChart3Icon className="size-4" />
+										Bar chart
+									</TabsTrigger>
+								</TabsList>
+								<p className="text-muted-foreground text-xs">
+									{currentPrices.data.length} prices · sorted by converted value
+								</p>
+							</div>
+
+							<TabsContent
+								value="list"
+								className="overflow-hidden rounded-md border"
+							>
+								<Table>
+									<TableHeader>
+										<TableRow>
+											<TableHead>Item</TableHead>
+											<TableHead>Site</TableHead>
+											<TableHead>Country</TableHead>
+											<TableHead className="text-right">
+												Price ({displayCurrency})
+											</TableHead>
+											<TableHead className="text-right">Native</TableHead>
+											<TableHead>Updated</TableHead>
+											<TableHead className="w-10" />
+										</TableRow>
+									</TableHeader>
+									<TableBody>
+										{currentPrices.data.map((row) => (
+											<TableRow key={row.itemId}>
+												<TableCell className="max-w-48 truncate font-medium">
+													{row.itemName || row.itemUrl}
+												</TableCell>
+												<TableCell>{row.siteName}</TableCell>
+												<TableCell>
+													<Badge variant="outline">{row.countryCode}</Badge>
+												</TableCell>
+												<TableCell className="text-right font-mono tabular-nums">
+													{formatCurrencyValue(
+														row.convertedPrice,
+														displayCurrency,
+													)}
+												</TableCell>
+												<TableCell className="text-right font-mono text-muted-foreground tabular-nums">
+													{formatCurrencyValue(
+														row.originalPrice,
+														row.originalCurrency,
+													)}
+												</TableCell>
+												<TableCell className="text-muted-foreground text-xs">
+													{formatTimestamp(row.time)}
+												</TableCell>
+												<TableCell>
+													<a
+														href={row.itemUrl}
+														target="_blank"
+														rel="noreferrer"
+														className={cn(
+															buttonVariants({
+																variant: "ghost",
+																size: "icon-xs",
+															}),
+														)}
+													>
+														<ExternalLinkIcon className="size-3.5" />
+													</a>
+												</TableCell>
+											</TableRow>
+										))}
+									</TableBody>
+								</Table>
+							</TabsContent>
+
+							<TabsContent value="chart" className="space-y-3">
+								<div className="max-h-128 overflow-y-auto pr-2">
+									<ChartContainer
+										config={currentPricesChartConfig}
+										className="aspect-auto min-h-80 w-full min-w-0"
+										style={{ height: currentPricesChartHeight }}
+									>
+										<BarChart
+											accessibilityLayer={currentPricesChartData.length <= 200}
+											data={currentPricesChartData}
+											layout="vertical"
+											margin={{ left: 12, right: 56, top: 8, bottom: 8 }}
+										>
+											<CartesianGrid horizontal={false} />
+											<XAxis type="number" hide />
+											<YAxis
+												dataKey="label"
+												type="category"
+												hide
+												tickLine={false}
+												axisLine={false}
+												interval={0}
+											/>
+											<ChartTooltip
+												cursor={false}
+												content={
+													<ChartTooltipContent
+														hideIndicator
+														labelFormatter={(_, payload) =>
+															formatCurrentPricesTooltipLabel(
+																payload?.[0]?.payload as
+																	| CurrentPriceChartRow
+																	| undefined,
+															)
+														}
+														formatter={(value, _name, item) => {
+															const row = item.payload as CurrentPriceChartRow;
+
+															return (
+																<div className="flex min-w-44 items-center justify-between gap-4">
+																	<div className="grid gap-1">
+																		<span className="text-muted-foreground text-xs">
+																			{row.countryCode} · {row.siteName}
+																		</span>
+																		<span className="text-muted-foreground text-xs">
+																			Native{" "}
+																			{formatCurrencyValue(
+																				row.originalPrice,
+																				row.originalCurrency,
+																			)}
+																		</span>
+																	</div>
+																	<span className="font-medium font-mono text-foreground tabular-nums">
+																		{formatCurrencyValue(
+																			Number(value),
+																			displayCurrency,
+																		)}
+																	</span>
+																</div>
+															);
+														}}
+													/>
+												}
+											/>
+											<Bar
+												dataKey="convertedPrice"
+												isAnimationActive={false}
+												layout="vertical"
+												radius={4}
 											>
-												<ExternalLinkIcon className="size-3.5" />
-											</a>
-										</TableCell>
-									</TableRow>
-								))}
-							</TableBody>
-						</Table>
+												<LabelList
+													dataKey="label"
+													position="insideLeft"
+													offset={8}
+													className="fill-(--color-label)"
+													fontSize={12}
+												/>
+												<LabelList
+													dataKey="convertedPrice"
+													position="right"
+													offset={8}
+													className="fill-foreground"
+													fontSize={12}
+													formatter={(value: number) =>
+														formatCurrencyValue(Number(value), displayCurrency)
+													}
+												/>
+												{currentPricesChartData.map((row) => (
+													<Cell
+														key={row.itemId}
+														fill={`var(--color-${row.countryCode})`}
+													/>
+												))}
+											</Bar>
+										</BarChart>
+									</ChartContainer>
+								</div>
+								<p className="text-muted-foreground text-xs">
+									Bars are ordered by converted price in {displayCurrency}.
+								</p>
+							</TabsContent>
+						</Tabs>
 					)}
 				</CardContent>
 			</Card>
@@ -663,6 +833,57 @@ function buildChartConfig(
 
 		return config;
 	}, {});
+}
+
+function buildCurrentPricesChartConfig(
+	rows: ProductCurrentPricesResponse["data"],
+): ChartConfig {
+	const config: ChartConfig = {
+		convertedPrice: {
+			label: "Converted price",
+		},
+		label: {
+			color: "var(--background)",
+		},
+	};
+
+	for (const row of rows) {
+		if (config[row.countryCode]) {
+			continue;
+		}
+
+		config[row.countryCode] = {
+			label: `${row.countryCode} (${row.siteName})`,
+			theme: getCountryChartTheme(row.countryCode),
+		};
+	}
+
+	return config;
+}
+
+function buildCurrentPricesChartData(
+	rows: ProductCurrentPricesResponse["data"],
+): CurrentPriceChartRow[] {
+	return [...rows]
+		.map((row) => ({
+			itemId: row.itemId,
+			label: `${row.countryName} · ${row.siteName}`,
+			fullLabel: row.itemName || row.itemUrl,
+			countryCode: row.countryCode,
+			siteName: row.siteName,
+			convertedPrice: row.convertedPrice,
+			originalPrice: row.originalPrice,
+			originalCurrency: row.originalCurrency,
+			itemUrl: row.itemUrl,
+			updatedAt: row.time,
+		}))
+		.sort((left, right) => {
+			if (left.convertedPrice !== right.convertedPrice) {
+				return left.convertedPrice - right.convertedPrice;
+			}
+
+			return left.fullLabel.localeCompare(right.fullLabel);
+		});
 }
 
 function buildChartData(series: ProductHistoryResponse["series"]) {
@@ -869,6 +1090,14 @@ function getTimestampFormatter(hasTimeComponent: boolean) {
 	}
 
 	return formatter;
+}
+
+function formatCurrentPricesTooltipLabel(row?: CurrentPriceChartRow) {
+	if (!row) {
+		return "Current price";
+	}
+
+	return `${row.countryCode} · ${row.fullLabel}`;
 }
 
 function areStringArraysEqual(left: string[], right: string[]) {
