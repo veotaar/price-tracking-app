@@ -32,36 +32,41 @@ function RouteComponent() {
 
 	if (auth.isAuthenticated) {
 		return (
-			<div className="flex h-svh flex-col items-center justify-center gap-6">
-				<h1 className="font-semibold text-3xl tracking-tight">
-					Price Tracking App
-				</h1>
-				<p className="text-muted-foreground">
-					Welcome back, {auth.user?.name || auth.user?.email}
+			<div className="flex h-svh flex-col items-center justify-center gap-4">
+				<h1 className="font-semibold text-2xl tracking-tight">Price Tracker</h1>
+				<p className="text-muted-foreground text-sm">
+					Signed in as {auth.user?.name || auth.user?.email}
 				</p>
-				<Button
-					onClick={() => signOutMutation.mutateAsync()}
-					variant="outline"
-					disabled={signOutMutation.isPending}
-				>
-					{signOutMutation.isPending ? <Spinner /> : "Sign Out"}
-				</Button>
-				<Link to="/app">
-					<Button variant="outline">Go to App</Button>
-				</Link>
+				<div className="flex gap-2">
+					<Link to="/app">
+						<Button size="sm">Open App</Button>
+					</Link>
+					<Button
+						onClick={() => signOutMutation.mutateAsync()}
+						variant="ghost"
+						size="sm"
+						disabled={signOutMutation.isPending}
+					>
+						{signOutMutation.isPending ? (
+							<Spinner className="size-4" />
+						) : (
+							"Sign Out"
+						)}
+					</Button>
+				</div>
 			</div>
 		);
 	}
 
 	return (
-		<div className="flex h-svh flex-col items-center justify-center gap-8">
+		<div className="flex h-svh flex-col items-center justify-center gap-6">
 			<div className="text-center">
-				<h1 className="font-bold text-4xl tracking-tight">
-					Price Tracking App
-				</h1>
-				<p className="mt-2 text-muted-foreground">Track Prices</p>
+				<h1 className="font-semibold text-3xl tracking-tight">Price Tracker</h1>
+				<p className="mt-1 text-muted-foreground text-sm">
+					Monitor prices across markets
+				</p>
 			</div>
-			<div className="flex gap-3">
+			<div className="flex gap-2">
 				<Link to="/login">
 					<Button>Sign In</Button>
 				</Link>

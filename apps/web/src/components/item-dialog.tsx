@@ -30,7 +30,7 @@ import {
 	SelectValue,
 } from "@web/components/ui/select";
 import { type } from "arktype";
-import { Link2Icon, PlusIcon, TriangleAlertIcon } from "lucide-react";
+import { PlusIcon, TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Spinner } from "./ui/spinner";
@@ -115,8 +115,7 @@ export function AddItemDialog({ sites }: { sites: SiteOption[] }) {
 					<DialogHeader>
 						<DialogTitle>Add item</DialogTitle>
 						<DialogDescription>
-							Register an item URL so the scheduler can start tracking prices on
-							a specific site.
+							Track a URL on a specific site.
 						</DialogDescription>
 					</DialogHeader>
 
@@ -231,22 +230,6 @@ export function AddItemDialog({ sites }: { sites: SiteOption[] }) {
 								</Field>
 							)}
 						/>
-
-						<div className="rounded-xl border bg-muted/30 p-4">
-							<div className="flex items-start gap-3">
-								<div className="rounded-lg bg-primary/10 p-2 text-primary">
-									<Link2Icon className="size-4" />
-								</div>
-								<div className="space-y-1">
-									<p className="font-medium text-sm">Tracking behavior</p>
-									<p className="text-muted-foreground text-sm">
-										New items are scheduled for scraping after creation, so
-										submit the final canonical product URL rather than a search
-										or redirect URL.
-									</p>
-								</div>
-							</div>
-						</div>
 					</FieldGroup>
 
 					<DialogFooter>

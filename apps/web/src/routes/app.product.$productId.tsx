@@ -12,6 +12,7 @@ import {
 	useProductCurrentPrices,
 	useProductHistory,
 } from "@web/api/products";
+import { PageHeader } from "@web/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@web/components/ui/alert";
 import { Badge } from "@web/components/ui/badge";
 import { Button, buttonVariants } from "@web/components/ui/button";
@@ -40,7 +41,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@web/components/ui/dropdown-menu";
-import { Field, FieldGroup, FieldLabel } from "@web/components/ui/field";
 import {
 	Select,
 	SelectContent,
@@ -50,6 +50,14 @@ import {
 	SelectValue,
 } from "@web/components/ui/select";
 import { Spinner } from "@web/components/ui/spinner";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@web/components/ui/table";
 import { getCountryChartTheme } from "@web/lib/chart-colors";
 import { currencyCodes } from "@web/lib/currencies";
 import { cn } from "@web/lib/utils";
@@ -58,21 +66,19 @@ import {
 	ChartSplineIcon,
 	CoinsIcon,
 	ExternalLinkIcon,
-	Globe2Icon,
-	Package2Icon,
 	RefreshCwIcon,
-	StoreIcon,
+	RotateCcwIcon,
 	TriangleAlertIcon,
 } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts";
 
 const INITIAL_DISPLAY_CURRENCY: CurrencyCode = "EUR";
 const EU_AVERAGE_SERIES_KEY = "EU_AVG";
 const EU_AVERAGE_SERIES_NAME = "EU Average";
 const EU_AVERAGE_THEME = {
-	light: "oklch(0.49 0.1 248)",
-	dark: "oklch(0.76 0.09 248)",
+	light: "oklch(0.3665 0.2103 268.66)",
+	dark: "oklch(0.497 0.2103 268.66)",
 } as const;
 
 type SelectableCountry = {
@@ -211,433 +217,305 @@ function RouteComponent() {
 
 	return (
 		<div className="space-y-6">
-			<section className="relative overflow-hidden rounded-2xl border bg-linear-to-br from-primary/10 via-background to-primary/5 p-6">
-				<div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.18),transparent_72%)] lg:block" />
-				<div className="relative space-y-5">
-					<Link
-						to="/app/products"
-						className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
-					>
-						<ArrowLeftIcon data-icon="inline-start" />
-						Back to products
-					</Link>
-					<div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-						<div className="max-w-3xl space-y-3">
-							<Badge variant="secondary" className="rounded-full px-3 py-1">
-								Product view
-							</Badge>
-							<div className="space-y-2">
-								<h1 className="font-semibold text-3xl tracking-tight">
-									{product.name}
-								</h1>
-								<p className="max-w-2xl text-muted-foreground text-sm sm:text-base">
-									Compare the lowest historical price by country and inspect the
-									latest tracked listings under one shared currency and country
-									filter set.
-								</p>
-							</div>
-						</div>
-						<div className="flex flex-wrap gap-2 lg:justify-end">
+			<div>
+				<Link
+					to="/app/products"
+					className={cn(
+						buttonVariants({ variant: "ghost", size: "sm" }),
+						"mb-2 -ml-2",
+					)}
+				>
+					<ArrowLeftIcon data-icon="inline-start" />
+					Products
+				</Link>
+				<PageHeader
+					title={product.name}
+					description={`${linkedItems} items · ${linkedSites} sites · ${selectedCountries.length} markets · ${displayCurrency}`}
+					actions={
+						<div className="flex flex-wrap gap-1">
 							{countries.map((country) => (
 								<Badge key={country.code} variant="outline">
 									{country.code}
 								</Badge>
 							))}
 						</div>
+					}
+				/>
+			</div>
+
+			{/* Filters toolbar */}
+			<div className="flex flex-wrap items-end gap-3">
+				<Select
+					items={currencyCodes.map((c) => ({ label: c, value: c }))}
+					value={displayCurrency}
+					onValueChange={(v) => setDisplayCurrency(v as CurrencyCode)}
+				>
+					<SelectTrigger className="w-32">
+						<SelectValue placeholder="Currency" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectGroup>
+							{currencyCodes.map((c) => (
+								<SelectItem key={c} value={c}>
+									{c}
+								</SelectItem>
+							))}
+						</SelectGroup>
+					</SelectContent>
+				</Select>
+
+				<CountryFilterMenu
+					countries={countries}
+					selectedCountryCodes={selectedCountryCodes}
+					onToggle={(countryCode) => {
+						setSelectedCountryCodes((current) =>
+							current.includes(countryCode)
+								? current.filter((code) => code !== countryCode)
+								: [...current, countryCode],
+						);
+					}}
+					onSelectAll={() => setSelectedCountryCodes(defaultCountryCodes)}
+					onClear={() => setSelectedCountryCodes([])}
+				/>
+
+				<label className="flex h-9 items-center gap-2 rounded-md border bg-background px-3 text-sm">
+					<input
+						type="checkbox"
+						checked={includeEuAverage}
+						onChange={(e) => setIncludeEuAverage(e.target.checked)}
+						className="size-3.5 rounded border-input accent-primary"
+					/>
+					EU average
+				</label>
+
+				{!isInitialFilters && (
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => {
+							setDisplayCurrency(INITIAL_DISPLAY_CURRENCY);
+							setSelectedCountryCodes(defaultCountryCodes);
+							setIncludeEuAverage(false);
+						}}
+					>
+						<RotateCcwIcon data-icon="inline-start" />
+						Reset
+					</Button>
+				)}
+			</div>
+
+			{/* Price history chart */}
+			<Card className="overflow-hidden pt-0">
+				<CardHeader className="border-b py-4">
+					<div className="flex items-center justify-between gap-3">
+						<CardTitle className="text-base">Lowest Price Over Time</CardTitle>
+						{isHistoryFetching && (
+							<RefreshCwIcon className="size-4 animate-spin text-muted-foreground" />
+						)}
 					</div>
-				</div>
-			</section>
-
-			<section className="grid gap-4 md:grid-cols-3">
-				<StatCard
-					label="Linked items"
-					value={linkedItems}
-					icon={<Package2Icon className="size-5" />}
-				/>
-				<StatCard
-					label="Tracked sites"
-					value={linkedSites}
-					icon={<StoreIcon className="size-5" />}
-				/>
-				<StatCard
-					label="Visible markets"
-					value={selectedCountries.length}
-					icon={<Globe2Icon className="size-5" />}
-				/>
-			</section>
-
-			<section>
-				<Card>
-					<CardHeader>
-						<CardTitle>Filters</CardTitle>
-						<CardDescription>
-							The selected countries and display currency are shared between the
-							price history chart and the latest price list. You can also
-							overlay the EU average on the chart.
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<FieldGroup className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)_220px_auto] lg:items-end">
-							<Field>
-								<FieldLabel htmlFor="product-display-currency">
-									Display currency
-								</FieldLabel>
-								<Select
-									items={currencyCodes.map((currency) => ({
-										label: currency,
-										value: currency,
-									}))}
-									value={displayCurrency}
-									onValueChange={(value) =>
-										setDisplayCurrency(value as CurrencyCode)
-									}
+				</CardHeader>
+				<CardContent className="space-y-4 p-4">
+					{historyError ? (
+						<Alert variant="destructive">
+							<TriangleAlertIcon />
+							<AlertTitle>Failed to load price history</AlertTitle>
+							<AlertDescription>
+								{historyError.message || "Chart data could not be loaded."}
+							</AlertDescription>
+						</Alert>
+					) : selectedCountryCodes.length === 0 && !includeEuAverage ? (
+						<EmptyBlock
+							icon={<ChartSplineIcon className="size-5" />}
+							message="Select at least one country or enable EU average"
+						/>
+					) : !history ||
+						history.series.length === 0 ||
+						chartData.length === 0 ? (
+						<EmptyBlock
+							icon={<ChartSplineIcon className="size-5" />}
+							message="No price history for the current selection"
+						/>
+					) : (
+						<>
+							<ChartContainer config={chartConfig} className="h-90 w-full">
+								<LineChart
+									accessibilityLayer
+									data={chartData}
+									margin={{ left: 12, right: 12, top: 12 }}
 								>
-									<SelectTrigger
-										id="product-display-currency"
-										className="w-full"
-									>
-										<SelectValue placeholder="Choose currency" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectGroup>
-											{currencyCodes.map((currency) => (
-												<SelectItem key={currency} value={currency}>
-													{currency}
-												</SelectItem>
-											))}
-										</SelectGroup>
-									</SelectContent>
-								</Select>
-							</Field>
-
-							<Field>
-								<FieldLabel>Countries</FieldLabel>
-								<CountryFilterMenu
-									countries={countries}
-									selectedCountryCodes={selectedCountryCodes}
-									onToggle={(countryCode) => {
-										setSelectedCountryCodes((current) =>
-											current.includes(countryCode)
-												? current.filter((code) => code !== countryCode)
-												: [...current, countryCode],
-										);
-									}}
-									onSelectAll={() =>
-										setSelectedCountryCodes(defaultCountryCodes)
-									}
-									onClear={() => setSelectedCountryCodes([])}
-								/>
-							</Field>
-
-							<Field>
-								<FieldLabel htmlFor="product-eu-average-line">
-									Chart overlay
-								</FieldLabel>
-								<label className="flex min-h-10 items-center gap-3 rounded-lg border bg-background px-3 py-2 text-sm">
-									<input
-										id="product-eu-average-line"
-										type="checkbox"
-										checked={includeEuAverage}
-										onChange={(event) =>
-											setIncludeEuAverage(event.target.checked)
-										}
-										className="size-4 rounded border-input accent-primary"
+									<CartesianGrid vertical={false} />
+									<XAxis
+										dataKey="bucket"
+										tickLine={false}
+										axisLine={false}
+										tickMargin={8}
+										minTickGap={24}
+										tickFormatter={(value) => formatShortDate(value)}
 									/>
-									<span>Show EU average line</span>
-								</label>
-							</Field>
+									<YAxis
+										domain={yAxisDomain}
+										width={96}
+										tickLine={false}
+										axisLine={false}
+										tickMargin={8}
+										tickFormatter={(value) =>
+											formatCompactCurrency(Number(value), displayCurrency)
+										}
+									/>
+									<ChartTooltip
+										cursor={false}
+										content={
+											<ChartTooltipContent
+												labelFormatter={(_, payload) =>
+													formatLongDate(payload?.[0]?.payload?.bucket)
+												}
+												formatter={(value, name) => (
+													<div className="flex min-w-40 items-center justify-between gap-4">
+														<span className="text-muted-foreground">
+															{chartConfig[String(name)]?.label ?? String(name)}
+														</span>
+														<span className="font-medium font-mono text-foreground tabular-nums">
+															{formatCurrencyValue(
+																Number(value),
+																displayCurrency,
+															)}
+														</span>
+													</div>
+												)}
+											/>
+										}
+									/>
+									<ChartLegend content={<ChartLegendContent />} />
+									{chartSeries.map((series) => (
+										<Line
+											key={series.countryCode}
+											dataKey={series.countryCode}
+											type="monotone"
+											stroke={`var(--color-${series.countryCode})`}
+											strokeWidth={
+												series.countryCode === EU_AVERAGE_SERIES_KEY ? 4 : 1.5
+											}
+											strokeDasharray={
+												series.countryCode === EU_AVERAGE_SERIES_KEY
+													? undefined
+													: "3 1"
+											}
+											dot={
+												showPointDots
+													? {
+															r: 2,
+															strokeWidth: 1.2,
+															fill: `var(--color-${series.countryCode})`,
+														}
+													: false
+											}
+											activeDot={{ r: 5 }}
+											connectNulls
+										/>
+									))}
+								</LineChart>
+							</ChartContainer>
 
-							<Button
-								variant="outline"
-								onClick={() => {
-									setDisplayCurrency(INITIAL_DISPLAY_CURRENCY);
-									setSelectedCountryCodes(defaultCountryCodes);
-									setIncludeEuAverage(false);
-								}}
-								disabled={
-									displayCurrency === INITIAL_DISPLAY_CURRENCY &&
-									includeEuAverage === false &&
-									areStringArraysEqual(
-										selectedCountryCodes,
-										defaultCountryCodes,
-									)
-								}
-							>
-								Reset filters
-							</Button>
-						</FieldGroup>
-					</CardContent>
-				</Card>
-			</section>
+							<p className="text-muted-foreground text-xs">
+								{visibleChartSeriesCount} series ·{" "}
+								{history.series.reduce((t, s) => t + s.data.length, 0)} data
+								points · converted to {displayCurrency}
+							</p>
+						</>
+					)}
+				</CardContent>
+			</Card>
 
-			<section>
-				<Card className="overflow-hidden pt-0">
-					<CardHeader className="border-b bg-muted/30 py-5">
-						<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-							<div>
-								<CardTitle>Lowest Price Over Time</CardTitle>
-								<CardDescription>
-									One line per selected country, with an optional EU average
-									overlay, converted to {displayCurrency} using the historical
-									exchange rate active at each price timestamp.
-								</CardDescription>
-							</div>
-							{isHistoryFetching ? (
-								<div className="flex items-center gap-2 text-muted-foreground text-sm">
-									<RefreshCwIcon className="size-4 animate-spin" />
-									Refreshing history
-								</div>
-							) : null}
-						</div>
-					</CardHeader>
-					<CardContent className="space-y-4 p-4">
-						{historyError ? (
+			{/* Current prices table */}
+			<Card className="overflow-hidden pt-0">
+				<CardHeader className="border-b py-4">
+					<div className="flex items-center justify-between gap-3">
+						<CardTitle className="text-base">Current Prices</CardTitle>
+						{isCurrentPricesFetching && <Spinner className="size-4" />}
+					</div>
+				</CardHeader>
+				<CardContent className="p-0">
+					{currentPricesError ? (
+						<div className="p-4">
 							<Alert variant="destructive">
 								<TriangleAlertIcon />
-								<AlertTitle>Failed to load price history</AlertTitle>
+								<AlertTitle>Failed to load current prices</AlertTitle>
 								<AlertDescription>
-									{historyError.message ||
-										"The chart data could not be loaded."}
+									{currentPricesError.message ||
+										"Price list could not be loaded."}
 								</AlertDescription>
 							</Alert>
-						) : selectedCountryCodes.length === 0 && !includeEuAverage ? (
-							<EmptyStateCard
-								title="No chart series selected"
-								description="Select at least one country or enable the EU average line to render the price history chart."
-								icon={<ChartSplineIcon className="size-5" />}
-							/>
-						) : !history ||
-							history.series.length === 0 ||
-							chartData.length === 0 ? (
-							<EmptyStateCard
-								title="No price history yet"
-								description="There are no historical prices for the selected countries and currency combination."
-								icon={<ChartSplineIcon className="size-5" />}
-							/>
-						) : (
-							<>
-								<ChartContainer config={chartConfig} className="h-90 w-full">
-									<LineChart
-										accessibilityLayer
-										data={chartData}
-										margin={{ left: 12, right: 12, top: 12 }}
-									>
-										<CartesianGrid vertical={false} />
-										<XAxis
-											dataKey="bucket"
-											tickLine={false}
-											axisLine={false}
-											tickMargin={8}
-											minTickGap={24}
-											tickFormatter={(value) => formatShortDate(value)}
-										/>
-										<YAxis
-											domain={yAxisDomain}
-											width={96}
-											tickLine={false}
-											axisLine={false}
-											tickMargin={8}
-											tickFormatter={(value) =>
-												formatCompactCurrency(Number(value), displayCurrency)
-											}
-										/>
-										<ChartTooltip
-											cursor={false}
-											content={
-												<ChartTooltipContent
-													labelFormatter={(_, payload) =>
-														formatLongDate(payload?.[0]?.payload?.bucket)
-													}
-													formatter={(value, name) => (
-														<div className="flex min-w-40 items-center justify-between gap-4">
-															<span className="text-muted-foreground">
-																{chartConfig[String(name)]?.label ??
-																	String(name)}
-															</span>
-															<span className="font-medium font-mono text-foreground tabular-nums">
-																{formatCurrencyValue(
-																	Number(value),
-																	displayCurrency,
-																)}
-															</span>
-														</div>
-													)}
-												/>
-											}
-										/>
-										<ChartLegend content={<ChartLegendContent />} />
-										{chartSeries.map((series) => (
-											<Line
-												key={series.countryCode}
-												dataKey={series.countryCode}
-												type="monotone"
-												stroke={`var(--color-${series.countryCode})`}
-												strokeWidth={
-													series.countryCode === EU_AVERAGE_SERIES_KEY
-														? 2.5
-														: 1.5
-												}
-												strokeDasharray={
-													series.countryCode === EU_AVERAGE_SERIES_KEY
-														? undefined
-														: "6 5"
-												}
-												dot={
-													showPointDots
-														? {
-																r: 3,
-																strokeWidth: 1.5,
-																fill: `var(--color-${series.countryCode})`,
-															}
-														: false
-												}
-												activeDot={{ r: 5 }}
-												connectNulls
-											/>
-										))}
-									</LineChart>
-								</ChartContainer>
-
-								<div className="grid gap-3 rounded-xl border bg-muted/20 px-4 py-4 md:grid-cols-3">
-									<MetricBlock
-										label="Visible chart series"
-										value={String(visibleChartSeriesCount)}
-									/>
-									<MetricBlock
-										label="Display currency"
-										value={displayCurrency}
-									/>
-									<MetricBlock
-										label="Data points"
-										value={String(
-											history.series.reduce(
-												(total, series) => total + series.data.length,
-												0,
-											),
-										)}
-									/>
-								</div>
-							</>
-						)}
-					</CardContent>
-				</Card>
-			</section>
-
-			<section>
-				<Card className="overflow-hidden pt-0">
-					<CardHeader className="border-b bg-muted/30 py-5">
-						<div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-							<div>
-								<CardTitle>Current Prices</CardTitle>
-								<CardDescription>
-									Latest captured price for every item in the selected
-									countries, shown in both the original and display currencies.
-								</CardDescription>
-							</div>
-							{isCurrentPricesFetching ? (
-								<div className="flex items-center gap-2 text-muted-foreground text-sm">
-									<Spinner className="size-4" />
-									Refreshing prices
-								</div>
-							) : null}
 						</div>
-					</CardHeader>
-					<CardContent className="p-0">
-						{currentPricesError ? (
-							<div className="p-4">
-								<Alert variant="destructive">
-									<TriangleAlertIcon />
-									<AlertTitle>Failed to load current prices</AlertTitle>
-									<AlertDescription>
-										{currentPricesError.message ||
-											"The current price list could not be loaded."}
-									</AlertDescription>
-								</Alert>
-							</div>
-						) : selectedCountryCodes.length === 0 ? (
-							<div className="p-4">
-								<EmptyStateCard
-									title="No countries selected"
-									description="Select at least one country to inspect the latest item prices."
-									icon={<CoinsIcon className="size-5" />}
-								/>
-							</div>
-						) : !currentPrices || currentPrices.data.length === 0 ? (
-							<div className="p-4">
-								<EmptyStateCard
-									title="No current prices found"
-									description="There are no latest price snapshots for the selected countries right now."
-									icon={<CoinsIcon className="size-5" />}
-								/>
-							</div>
-						) : (
-							<div className="divide-y">
+					) : selectedCountryCodes.length === 0 ? (
+						<div className="p-4">
+							<EmptyBlock
+								icon={<CoinsIcon className="size-5" />}
+								message="Select at least one country to see prices"
+							/>
+						</div>
+					) : !currentPrices || currentPrices.data.length === 0 ? (
+						<div className="p-4">
+							<EmptyBlock
+								icon={<CoinsIcon className="size-5" />}
+								message="No current prices for the selected countries"
+							/>
+						</div>
+					) : (
+						<Table>
+							<TableHeader>
+								<TableRow>
+									<TableHead>Item</TableHead>
+									<TableHead>Site</TableHead>
+									<TableHead>Country</TableHead>
+									<TableHead className="text-right">
+										Price ({displayCurrency})
+									</TableHead>
+									<TableHead className="text-right">Native</TableHead>
+									<TableHead>Updated</TableHead>
+									<TableHead className="w-10" />
+								</TableRow>
+							</TableHeader>
+							<TableBody>
 								{currentPrices.data.map((row) => (
-									<div
-										key={row.itemId}
-										className="grid gap-4 px-4 py-4 transition-colors hover:bg-muted/30 xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.9fr)_minmax(0,0.75fr)_auto] xl:items-center"
-									>
-										<div className="min-w-0 space-y-2">
-											<div className="flex flex-wrap items-center gap-2">
-												<p className="truncate font-medium text-base">
-													{row.itemName || row.itemUrl}
-												</p>
-												<Badge variant="outline">{row.countryCode}</Badge>
-											</div>
-											<p className="truncate text-muted-foreground text-sm">
-												{row.itemUrl}
-											</p>
-										</div>
-
-										<div className="space-y-2 rounded-lg border bg-background px-3 py-3">
-											<p className="font-medium text-sm">{row.siteName}</p>
-											<p className="text-muted-foreground text-sm">
-												{row.countryName} · {row.countryCode}
-											</p>
-										</div>
-
-										<div className="space-y-1 rounded-lg border bg-muted/20 px-3 py-3">
-											<p className="text-muted-foreground text-xs uppercase tracking-[0.24em]">
-												Prices
-											</p>
-											<p className="font-medium text-sm">
-												{formatCurrencyValue(
-													row.convertedPrice,
-													displayCurrency,
-												)}
-											</p>
-											<p className="text-muted-foreground text-sm">
-												Native:{" "}
-												{formatCurrencyValue(
-													row.originalPrice,
-													row.originalCurrency,
-												)}
-											</p>
-											<p className="text-muted-foreground text-xs">
-												Updated {formatTimestamp(row.time)}
-											</p>
-										</div>
-
-										<div className="flex items-center gap-2 xl:justify-end">
+									<TableRow key={row.itemId}>
+										<TableCell className="max-w-48 truncate font-medium">
+											{row.itemName || row.itemUrl}
+										</TableCell>
+										<TableCell>{row.siteName}</TableCell>
+										<TableCell>
+											<Badge variant="outline">{row.countryCode}</Badge>
+										</TableCell>
+										<TableCell className="text-right font-mono tabular-nums">
+											{formatCurrencyValue(row.convertedPrice, displayCurrency)}
+										</TableCell>
+										<TableCell className="text-right font-mono text-muted-foreground tabular-nums">
+											{formatCurrencyValue(
+												row.originalPrice,
+												row.originalCurrency,
+											)}
+										</TableCell>
+										<TableCell className="text-muted-foreground text-xs">
+											{formatTimestamp(row.time)}
+										</TableCell>
+										<TableCell>
 											<a
 												href={row.itemUrl}
 												target="_blank"
 												rel="noreferrer"
 												className={cn(
-													buttonVariants({ variant: "outline", size: "sm" }),
+													buttonVariants({ variant: "ghost", size: "icon-xs" }),
 												)}
 											>
-												<ExternalLinkIcon data-icon="inline-start" />
-												Open listing
+												<ExternalLinkIcon className="size-3.5" />
 											</a>
-										</div>
-									</div>
+										</TableCell>
+									</TableRow>
 								))}
-							</div>
-						)}
-					</CardContent>
-				</Card>
-			</section>
+							</TableBody>
+						</Table>
+					)}
+				</CardContent>
+			</Card>
 		</div>
 	);
 }
@@ -700,59 +578,17 @@ function CountryFilterMenu({
 	);
 }
 
-function StatCard({
-	label,
-	value,
+function EmptyBlock({
 	icon,
+	message,
 }: {
-	label: string;
-	value: number;
-	icon: ReactNode;
+	icon: React.ReactNode;
+	message: string;
 }) {
 	return (
-		<Card>
-			<CardContent className="flex items-center justify-between gap-4 p-5">
-				<div>
-					<p className="text-muted-foreground text-sm">{label}</p>
-					<p className="mt-1 font-semibold text-2xl tracking-tight">{value}</p>
-				</div>
-				<div className="rounded-full bg-primary/10 p-3 text-primary">
-					{icon}
-				</div>
-			</CardContent>
-		</Card>
-	);
-}
-
-function MetricBlock({ label, value }: { label: string; value: string }) {
-	return (
-		<div>
-			<p className="text-muted-foreground text-xs uppercase tracking-[0.24em]">
-				{label}
-			</p>
-			<p className="mt-2 font-medium text-sm">{value}</p>
-		</div>
-	);
-}
-
-function EmptyStateCard({
-	title,
-	description,
-	icon,
-}: {
-	title: string;
-	description: string;
-	icon: ReactNode;
-}) {
-	return (
-		<div className="flex min-h-56 flex-col items-center justify-center rounded-xl border border-dashed bg-muted/20 px-6 py-10 text-center">
-			<div className="mb-4 rounded-full bg-primary/10 p-3 text-primary">
-				{icon}
-			</div>
-			<h3 className="font-medium text-lg">{title}</h3>
-			<p className="mt-2 max-w-md text-muted-foreground text-sm">
-				{description}
-			</p>
+		<div className="flex min-h-40 flex-col items-center justify-center gap-2 text-center text-muted-foreground">
+			{icon}
+			<p className="text-sm">{message}</p>
 		</div>
 	);
 }
@@ -815,8 +651,10 @@ function buildChartData(series: ProductHistoryResponse["series"]) {
 		}
 	}
 
-	return [...pointsByBucket.values()].sort((left, right) =>
-		String(left.bucket).localeCompare(String(right.bucket)),
+	return [...pointsByBucket.values()].sort(
+		(left, right) =>
+			new Date(String(left.bucket)).getTime() -
+			new Date(String(right.bucket)).getTime(),
 	);
 }
 

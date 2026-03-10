@@ -9,6 +9,7 @@ import {
 	AddCountryDialog,
 	EditCountryDialog,
 } from "@web/components/add-country-dialog";
+import { PageHeader } from "@web/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@web/components/ui/alert";
 import {
 	AlertDialog,
@@ -32,12 +33,14 @@ import {
 } from "@web/components/ui/card";
 import { Spinner } from "@web/components/ui/spinner";
 import {
-	Globe2Icon,
-	LandmarkIcon,
-	MapPinnedIcon,
-	Trash2Icon,
-	TriangleAlertIcon,
-} from "lucide-react";
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@web/components/ui/table";
+import { Globe2Icon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
 
 export const Route = createFileRoute("/app/countries")({
@@ -74,154 +77,68 @@ function RouteComponent() {
 	).length;
 
 	return (
-		<div className="space-y-6">
-			<section className="relative overflow-hidden rounded-2xl border bg-linear-to-br from-primary/10 via-background to-accent-500/10 p-6">
-				<div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.14),transparent_70%)] lg:block" />
-				<div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-					<div className="max-w-2xl space-y-3">
-						<Badge variant="secondary" className="rounded-full px-3 py-1">
-							Admin catalog
-						</Badge>
-						<div className="space-y-2">
-							<h1 className="font-semibold text-3xl tracking-tight">
-								Country registry
-							</h1>
-							<p className="max-w-xl text-muted-foreground text-sm sm:text-base">
-								Manage the markets your sites can belong to. Each country
-								defines the code and currency used downstream in scraping and
-								pricing.
-							</p>
-						</div>
-					</div>
-					<AddCountryDialog />
-				</div>
-			</section>
+		<div className="space-y-4">
+			<PageHeader
+				title="Countries"
+				description={`${sortedCountries.length} countries · ${currencyCount} currencies · ${euMemberCount} EU`}
+				actions={<AddCountryDialog />}
+			/>
 
-			<section className="grid gap-4 md:grid-cols-3">
-				<Card className="border-primary/20 bg-primary/5">
-					<CardHeader>
-						<div className="flex items-center justify-between gap-3">
-							<div>
-								<CardDescription>Total countries</CardDescription>
-								<CardTitle className="mt-2 text-3xl">
-									{sortedCountries.length}
-								</CardTitle>
-							</div>
-							<div className="rounded-xl bg-primary/10 p-3 text-primary">
-								<Globe2Icon className="size-5" />
-							</div>
-						</div>
-					</CardHeader>
-				</Card>
-
+			{sortedCountries.length === 0 ? (
 				<Card>
-					<CardHeader>
-						<div className="flex items-center justify-between gap-3">
-							<div>
-								<CardDescription>Currencies covered</CardDescription>
-								<CardTitle className="mt-2 text-3xl">{currencyCount}</CardTitle>
-							</div>
-							<div className="rounded-xl bg-primary/10 p-3 text-primary">
-								<LandmarkIcon className="size-5" />
-							</div>
+					<CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+						<div className="rounded-xl bg-muted p-3 text-muted-foreground">
+							<Globe2Icon className="size-5" />
 						</div>
-					</CardHeader>
+						<p className="text-muted-foreground text-sm">
+							No countries yet. Add the first market to get started.
+						</p>
+						<AddCountryDialog />
+					</CardContent>
 				</Card>
-
-				<Card>
-					<CardHeader>
-						<div className="flex items-center justify-between gap-3">
-							<div>
-								<CardDescription>EU member markets</CardDescription>
-								<CardTitle className="mt-2 text-3xl">{euMemberCount}</CardTitle>
-							</div>
-							<div className="rounded-xl bg-primary/10 p-3 text-primary">
-								<MapPinnedIcon className="size-5" />
-							</div>
-						</div>
-					</CardHeader>
-				</Card>
-			</section>
-
-			<section>
-				<Card className="overflow-hidden pt-0">
-					<CardHeader className="border-b bg-muted/30 py-5">
-						<CardTitle>All countries</CardTitle>
-						<CardDescription>
-							A clean list of active country records available for site setup.
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="p-0">
-						{sortedCountries.length === 0 ? (
-							<div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-								<div className="rounded-2xl bg-muted p-4 text-muted-foreground">
-									<Globe2Icon className="size-6" />
-								</div>
-								<div className="space-y-1">
-									<p className="font-medium text-base">No countries yet</p>
-									<p className="text-muted-foreground text-sm">
-										Start by adding the first market to unlock site and item
-										setup.
-									</p>
-								</div>
-								<AddCountryDialog />
-							</div>
-						) : (
-							<div className="divide-y">
-								{sortedCountries.map((country) => (
-									<div
-										key={country.id}
-										className="grid gap-4 px-4 py-4 transition-colors hover:bg-muted/30 lg:grid-cols-[minmax(0,1.5fr)_120px_140px_auto] lg:items-center"
-									>
-										<div className="min-w-0 space-y-1">
-											<p className="truncate font-medium text-base">
-												{country.name}
-											</p>
-											<div className="flex flex-wrap items-center gap-2 text-sm">
-												<p className="text-muted-foreground">
-													Configured market for pricing and site assignment
-												</p>
-												<Badge
-													variant={country.euMember ? "default" : "secondary"}
-													className="rounded-md px-2 py-0.5"
-												>
-													{country.euMember ? "EU member" : "Non-EU"}
-												</Badge>
-											</div>
-										</div>
-
-										<div className="flex flex-col gap-1 md:items-start">
-											<span className="text-muted-foreground text-xs uppercase tracking-[0.24em]">
-												Code
-											</span>
-											<Badge
-												variant="outline"
-												className="rounded-md px-2.5 py-1"
-											>
-												{country.code}
+			) : (
+				<Card className="overflow-hidden p-0">
+					<Table>
+						<TableHeader>
+							<TableRow className="hover:bg-transparent">
+								<TableHead>Name</TableHead>
+								<TableHead className="w-20">Code</TableHead>
+								<TableHead className="w-24">Currency</TableHead>
+								<TableHead className="w-16">EU</TableHead>
+								<TableHead className="w-24 text-right">Actions</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{sortedCountries.map((country) => (
+								<TableRow key={country.id}>
+									<TableCell className="font-medium">{country.name}</TableCell>
+									<TableCell>
+										<Badge variant="outline" className="font-mono text-xs">
+											{country.code}
+										</Badge>
+									</TableCell>
+									<TableCell>
+										<Badge className="text-xs">{country.currency}</Badge>
+									</TableCell>
+									<TableCell>
+										{country.euMember && (
+											<Badge variant="secondary" className="text-xs">
+												EU
 											</Badge>
-										</div>
-
-										<div className="flex flex-col gap-1 md:items-start">
-											<span className="text-muted-foreground text-xs uppercase tracking-[0.24em]">
-												Currency
-											</span>
-											<Badge className="rounded-md px-2.5 py-1">
-												{country.currency}
-											</Badge>
-										</div>
-
-										<div className="flex items-center gap-2 lg:justify-end">
+										)}
+									</TableCell>
+									<TableCell className="text-right">
+										<div className="flex items-center justify-end gap-1">
 											<EditCountryDialog country={country} />
 											<DeleteCountryButton country={country} />
 										</div>
-									</div>
-								))}
-							</div>
-						)}
-					</CardContent>
+									</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
 				</Card>
-			</section>
+			)}
 		</div>
 	);
 }

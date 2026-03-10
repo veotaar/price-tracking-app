@@ -20,7 +20,6 @@ import {
 } from "@web/components/ui/dialog";
 import {
 	Field,
-	FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
@@ -35,12 +34,7 @@ import {
 	SelectValue,
 } from "@web/components/ui/select";
 import { type } from "arktype";
-import {
-	PencilIcon,
-	PlusIcon,
-	ServerIcon,
-	TriangleAlertIcon,
-} from "lucide-react";
+import { PencilIcon, PlusIcon, TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Spinner } from "./ui/spinner";
@@ -274,9 +268,6 @@ function SiteDialog({
 												placeholder="amazon.de"
 												required
 											/>
-											<FieldDescription>
-												Store the canonical host used by item URLs.
-											</FieldDescription>
 											{isInvalid && (
 												<FieldError errors={field.state.meta.errors} />
 											)}
@@ -376,10 +367,7 @@ function SiteDialog({
 													</SelectGroup>
 												</SelectContent>
 											</Select>
-											<FieldDescription>
-												Choose whether this site can be scraped directly or
-												needs a browser job.
-											</FieldDescription>
+
 											{isInvalid && (
 												<FieldError errors={field.state.meta.errors} />
 											)}
@@ -444,10 +432,7 @@ function SiteDialog({
 												placeholder="1"
 												required
 											/>
-											<FieldDescription>
-												Use `1` for normal decimal prices, `100` when a site
-												exposes `20.95` as `2095`.
-											</FieldDescription>
+
 											{isInvalid && (
 												<FieldError errors={field.state.meta.errors} />
 											)}
@@ -484,21 +469,6 @@ function SiteDialog({
 									);
 								}}
 							/>
-						</div>
-
-						<div className="rounded-xl border bg-muted/30 p-4">
-							<div className="flex items-start gap-3">
-								<div className="rounded-lg bg-primary/10 p-2 text-primary">
-									<ServerIcon className="size-4" />
-								</div>
-								<div className="space-y-1">
-									<p className="font-medium text-sm">Scraper contract</p>
-									<p className="text-muted-foreground text-sm">
-										Selectors are used directly by workers, so treat them like
-										part of your scraping interface and keep them stable.
-									</p>
-								</div>
-							</div>
 						</div>
 					</FieldGroup>
 
@@ -547,7 +517,7 @@ export function AddSiteDialog({ countries }: { countries: CountryOption[] }) {
 				countryId: "",
 			}}
 			title="Add site"
-			description="Create a new marketplace site and define the selectors the scraper should use."
+			description="Define a site and its scraping selectors."
 			submitLabel="Create site"
 			countries={countries}
 		/>
@@ -581,7 +551,7 @@ export function EditSiteDialog({
 				countryId: site.country.id,
 			}}
 			title={`Edit ${site.name}`}
-			description="Update selectors or market assignment for this site."
+			description="Update this site's configuration."
 			submitLabel="Save changes"
 			countries={countries}
 		/>

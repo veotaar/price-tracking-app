@@ -26,12 +26,7 @@ import {
 } from "@web/components/ui/field";
 import { Input } from "@web/components/ui/input";
 import { type } from "arktype";
-import {
-	BoxesIcon,
-	PencilIcon,
-	PlusIcon,
-	TriangleAlertIcon,
-} from "lucide-react";
+import { PencilIcon, PlusIcon, TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Spinner } from "./ui/spinner";
@@ -195,21 +190,6 @@ function ProductDialog({
 								);
 							}}
 						/>
-
-						<div className="rounded-xl border bg-muted/30 p-4">
-							<div className="flex items-start gap-3">
-								<div className="rounded-lg bg-primary/10 p-2 text-primary">
-									<BoxesIcon className="size-4" />
-								</div>
-								<div className="space-y-1">
-									<p className="font-medium text-sm">Product grouping</p>
-									<p className="text-muted-foreground text-sm">
-										Products are logical groups of linked items across sites,
-										not a single scrape target.
-									</p>
-								</div>
-							</div>
-						</div>
 					</FieldGroup>
 
 					<DialogFooter>
@@ -249,7 +229,7 @@ export function AddProductDialog() {
 			}
 			defaultValues={{ name: "" }}
 			title="Add product"
-			description="Create a product grouping that can collect matching items from multiple sites."
+			description="Create a product to group items across sites."
 			submitLabel="Create product"
 		/>
 	);
@@ -268,7 +248,7 @@ export function EditProductDialog({ product }: { product: EditableProduct }) {
 			}
 			defaultValues={{ name: product.name }}
 			title={`Edit ${product.name}`}
-			description="Rename this product grouping. Linked items stay attached."
+			description="Rename this product."
 			submitLabel="Save changes"
 		/>
 	);

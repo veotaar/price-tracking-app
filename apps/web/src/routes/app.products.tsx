@@ -6,6 +6,7 @@ import {
 	useDeleteProduct,
 	useProducts,
 } from "@web/api/products";
+import { PageHeader } from "@web/components/page-header";
 import {
 	AddProductDialog,
 	EditProductDialog,
@@ -33,14 +34,7 @@ import {
 	CardTitle,
 } from "@web/components/ui/card";
 import { Spinner } from "@web/components/ui/spinner";
-import {
-	BoxesIcon,
-	ChevronsLeftRightEllipsisIcon,
-	Link2Icon,
-	PackageSearchIcon,
-	Trash2Icon,
-	TriangleAlertIcon,
-} from "lucide-react";
+import { BoxesIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
 
 const PRODUCTS_PER_PAGE = 12;
@@ -81,166 +75,114 @@ function RouteComponent() {
 		limit: PRODUCTS_PER_PAGE,
 	});
 
-	const linkedItemsInPage = response.data.reduce(
-		(total, product) => total + product.productItems.length,
-		0,
-	);
-
 	return (
-		<div className="space-y-6">
-			<section className="relative overflow-hidden rounded-2xl border bg-linear-to-br from-primary/10 via-background to-primary/5 p-6">
-				<div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.14),transparent_70%)] lg:block" />
-				<div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-					<div className="max-w-2xl space-y-3">
-						<Badge variant="secondary" className="rounded-full px-3 py-1">
-							Grouped catalog
-						</Badge>
-						<div className="space-y-2">
-							<h1 className="font-semibold text-3xl tracking-tight">
-								Products
-							</h1>
-							<p className="max-w-xl text-muted-foreground text-sm sm:text-base">
-								Group related items across sites, then manage which tracked
-								listings roll up into each product.
-							</p>
+		<div className="space-y-4">
+			<PageHeader
+				title="Products"
+				description={`${response.pagination.total} products · Page ${response.pagination.page} of ${response.pagination.totalPages || 1}`}
+				actions={<AddProductDialog />}
+			/>
+
+			{response.data.length === 0 ? (
+				<Card>
+					<CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+						<div className="rounded-xl bg-muted p-3 text-muted-foreground">
+							<BoxesIcon className="size-5" />
 						</div>
-					</div>
-					<AddProductDialog />
-				</div>
-			</section>
-
-			<section className="grid gap-4 md:grid-cols-3">
-				<StatCard
-					label="Total products"
-					value={response.pagination.total}
-					icon={<BoxesIcon className="size-5" />}
-				/>
-				<StatCard
-					label="Current page links"
-					value={linkedItemsInPage}
-					icon={<Link2Icon className="size-5" />}
-				/>
-				<StatCard
-					label="Total pages"
-					value={response.pagination.totalPages}
-					icon={<PackageSearchIcon className="size-5" />}
-				/>
-			</section>
-
-			<section className="flex items-center justify-between gap-4 rounded-2xl border bg-muted/20 px-4 py-3">
-				<div>
-					<p className="font-medium text-sm">Pagination</p>
-					<p className="text-muted-foreground text-sm">
-						Page {response.pagination.page} of{" "}
-						{response.pagination.totalPages || 1}
-					</p>
-				</div>
-				<div className="flex items-center gap-2">
-					<Button
-						variant="outline"
-						disabled={page <= 1}
-						onClick={() => setPage((current) => Math.max(1, current - 1))}
-					>
-						Previous
-					</Button>
-					<Button
-						variant="outline"
-						disabled={page >= response.pagination.totalPages}
-						onClick={() =>
-							setPage((current) =>
-								Math.min(response.pagination.totalPages, current + 1),
-							)
-						}
-					>
-						Next
-					</Button>
-				</div>
-			</section>
-
-			<section>
-				<Card className="overflow-hidden pt-0">
-					<CardHeader className="border-b bg-muted/30 py-5">
-						<CardTitle>Product groups</CardTitle>
-						<CardDescription>
-							Each product can collect multiple tracked items from different
-							markets.
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="p-4">
-						{response.data.length === 0 ? (
-							<EmptyState action={<AddProductDialog />} />
-						) : (
-							<div className="grid gap-4 xl:grid-cols-2">
-								{response.data.map((product) => (
-									<Card key={product.id} className="border bg-card py-0">
-										<CardHeader className="border-b bg-muted/20 py-4">
-											<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-												<div className="space-y-2">
-													<div className="flex flex-wrap items-center gap-2">
-														<CardTitle>{product.name}</CardTitle>
-														<Badge variant="outline">
-															{product.productItems.length} linked
-														</Badge>
-													</div>
-													<CardDescription>
-														Keep matching items grouped under one product record
-														for cross-site comparison.
-													</CardDescription>
-												</div>
-												<div className="flex flex-wrap items-center gap-2 sm:justify-end">
-													<Link
-														to="/app/product/$productId"
-														params={{ productId: product.id }}
-														className={buttonVariants({
-															variant: "outline",
-															size: "sm",
-														})}
-													>
-														View
-													</Link>
-													<EditProductDialog product={product} />
-													<ProductItemsDialog product={product} items={items} />
-													<DeleteProductButton product={product} />
-												</div>
-											</div>
-										</CardHeader>
-										<CardContent className="space-y-3 pt-4">
-											<div className="flex flex-wrap gap-2">
-												{product.productItems.length ? (
-													product.productItems.map(({ item }) => (
-														<Badge
-															key={item.id}
-															variant="secondary"
-															className="max-w-full truncate"
-														>
-															{item.name || item.url}
-														</Badge>
-													))
-												) : (
-													<p className="text-muted-foreground text-sm">
-														No linked items yet. Use Manage items to attach
-														listings.
-													</p>
-												)}
-											</div>
-											<div className="rounded-lg border bg-muted/20 px-3 py-3">
-												<p className="text-muted-foreground text-xs uppercase tracking-[0.24em]">
-													Status
-												</p>
-												<p className="mt-1 text-sm">
-													{product.productItems.length
-														? "Product has active item associations ready for comparison."
-														: "Product exists without linked source items yet."}
-												</p>
-											</div>
-										</CardContent>
-									</Card>
-								))}
-							</div>
-						)}
+						<p className="text-muted-foreground text-sm">
+							No products yet. Create one to start grouping items.
+						</p>
+						<AddProductDialog />
 					</CardContent>
 				</Card>
-			</section>
+			) : (
+				<>
+					<div className="grid gap-4 xl:grid-cols-2">
+						{response.data.map((product) => (
+							<Card key={product.id} className="flex flex-col py-0">
+								<CardHeader className="border-b py-3">
+									<div className="flex flex-col gap-2">
+										<div className="flex min-w-0 items-center gap-2">
+											<CardTitle className="truncate text-base">
+												{product.name}
+											</CardTitle>
+											<Badge variant="outline" className="shrink-0 text-xs">
+												{product.productItems.length} linked
+											</Badge>
+										</div>
+										<div className="flex items-center gap-1">
+											<Link
+												to="/app/product/$productId"
+												params={{ productId: product.id }}
+												className={buttonVariants({
+													variant: "ghost",
+													size: "xs",
+												})}
+											>
+												View
+											</Link>
+											<EditProductDialog product={product} />
+											<ProductItemsDialog product={product} items={items} />
+											<DeleteProductButton product={product} />
+										</div>
+									</div>
+								</CardHeader>
+								<CardContent className="flex-1 pt-3 pb-3">
+									<div className="flex flex-wrap gap-1.5">
+										{product.productItems.length ? (
+											product.productItems.map(({ item }) => (
+												<Badge
+													key={item.id}
+													variant="secondary"
+													className="max-w-full truncate text-xs"
+												>
+													{item.name || item.url}
+												</Badge>
+											))
+										) : (
+											<p className="text-muted-foreground text-xs">
+												No linked items yet.
+											</p>
+										)}
+									</div>
+								</CardContent>
+							</Card>
+						))}
+					</div>
+
+					{/* Pagination */}
+					{response.pagination.totalPages > 1 && (
+						<div className="flex items-center justify-between pt-2">
+							<p className="text-muted-foreground text-sm">
+								Page {response.pagination.page} of{" "}
+								{response.pagination.totalPages}
+							</p>
+							<div className="flex items-center gap-2">
+								<Button
+									variant="outline"
+									size="sm"
+									disabled={page <= 1}
+									onClick={() => setPage((c) => Math.max(1, c - 1))}
+								>
+									Previous
+								</Button>
+								<Button
+									variant="outline"
+									size="sm"
+									disabled={page >= response.pagination.totalPages}
+									onClick={() =>
+										setPage((c) =>
+											Math.min(response.pagination.totalPages, c + 1),
+										)
+									}
+								>
+									Next
+								</Button>
+							</div>
+						</div>
+					)}
+				</>
+			)}
 		</div>
 	);
 }
@@ -311,48 +253,5 @@ function DeleteProductButton({
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
-	);
-}
-
-function StatCard({
-	label,
-	value,
-	icon,
-}: {
-	label: string;
-	value: number;
-	icon: React.ReactNode;
-}) {
-	return (
-		<Card>
-			<CardHeader>
-				<div className="flex items-center justify-between gap-3">
-					<div>
-						<CardDescription>{label}</CardDescription>
-						<CardTitle className="mt-2 text-3xl">{value}</CardTitle>
-					</div>
-					<div className="rounded-xl bg-primary/10 p-3 text-primary">
-						{icon}
-					</div>
-				</div>
-			</CardHeader>
-		</Card>
-	);
-}
-
-function EmptyState({ action }: { action: React.ReactNode }) {
-	return (
-		<div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-			<div className="rounded-2xl bg-muted p-4 text-muted-foreground">
-				<ChevronsLeftRightEllipsisIcon className="size-6" />
-			</div>
-			<div className="space-y-1">
-				<p className="font-medium text-base">No products yet</p>
-				<p className="text-muted-foreground text-sm">
-					Create the first product group, then link tracked items into it.
-				</p>
-			</div>
-			{action}
-		</div>
 	);
 }

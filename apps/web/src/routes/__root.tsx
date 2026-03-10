@@ -19,7 +19,7 @@ function RootComponent() {
 	return (
 		<>
 			<Outlet />
-			<TanStackRouterDevtools />
+			<TanStackRouterDevtools position="bottom-left" />
 			<ReactQueryDevtools buttonPosition="top-right" position="top" />
 			<TanStackDevtools plugins={[formDevtoolsPlugin()]} />
 		</>

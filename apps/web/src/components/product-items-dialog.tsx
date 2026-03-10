@@ -17,12 +17,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@web/components/ui/dialog";
-import {
-	Field,
-	FieldDescription,
-	FieldGroup,
-	FieldLabel,
-} from "@web/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@web/components/ui/field";
 import { ScrollArea } from "@web/components/ui/scroll-area";
 import {
 	Select,
@@ -122,8 +117,7 @@ export function ProductItemsDialog({
 				<DialogHeader>
 					<DialogTitle>Manage items for {product.name}</DialogTitle>
 					<DialogDescription>
-						Link or unlink tracked items that represent this product across
-						sites.
+						Link or unlink items for this product.
 					</DialogDescription>
 				</DialogHeader>
 
@@ -184,9 +178,6 @@ export function ProductItemsDialog({
 									</SelectGroup>
 								</SelectContent>
 							</Select>
-							<FieldDescription>
-								Only items not already linked to this product are shown.
-							</FieldDescription>
 						</Field>
 
 						<div className="flex justify-end">

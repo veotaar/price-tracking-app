@@ -83,10 +83,8 @@ export function LoginForm({ ...props }: React.ComponentProps<typeof Card>) {
 	return (
 		<Card {...props}>
 			<CardHeader>
-				<CardTitle>Login to your account</CardTitle>
-				<CardDescription>
-					Enter your information below to login to your account
-				</CardDescription>
+				<CardTitle>Sign in</CardTitle>
+				<CardDescription>Enter your credentials to continue</CardDescription>
 			</CardHeader>
 			<CardContent>
 				{loginError && (
@@ -154,9 +152,7 @@ export function LoginForm({ ...props }: React.ComponentProps<typeof Card>) {
 											onChange={(e) => field.handleChange(e.target.value)}
 											aria-invalid={isInvalid}
 										/>
-										<FieldDescription>
-											Must be at least 16 characters long.
-										</FieldDescription>
+										<FieldDescription>Min 16 characters.</FieldDescription>
 										{isInvalid && (
 											<FieldError errors={field.state.meta.errors} />
 										)}

@@ -97,10 +97,8 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
 	return (
 		<Card {...props}>
 			<CardHeader>
-				<CardTitle>Create an account</CardTitle>
-				<CardDescription>
-					Enter your information below to create your account
-				</CardDescription>
+				<CardTitle>Create account</CardTitle>
+				<CardDescription>Fill in the form below to get started</CardDescription>
 			</CardHeader>
 			<CardContent>
 				{signupError && (
@@ -194,9 +192,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
 											onChange={(e) => field.handleChange(e.target.value)}
 											aria-invalid={isInvalid}
 										/>
-										<FieldDescription>
-											Must be at least 16 characters long.
-										</FieldDescription>
+										<FieldDescription>Min 16 characters.</FieldDescription>
 										{isInvalid && (
 											<FieldError errors={field.state.meta.errors} />
 										)}
@@ -224,9 +220,7 @@ export function SignupForm({ ...props }: React.ComponentProps<typeof Card>) {
 											onChange={(e) => field.handleChange(e.target.value)}
 											aria-invalid={isInvalid}
 										/>
-										<FieldDescription>
-											Please confirm your password.
-										</FieldDescription>
+										<FieldDescription>Re-enter your password.</FieldDescription>
 										{isInvalid && (
 											<FieldError errors={field.state.meta.errors} />
 										)}

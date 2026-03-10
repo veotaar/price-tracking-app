@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { countriesOptions, useCountries } from "@web/api/countries";
 import { sitesOptions, useDeleteSite, useSites } from "@web/api/sites";
+import { PageHeader } from "@web/components/page-header";
 import { AddSiteDialog, EditSiteDialog } from "@web/components/site-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@web/components/ui/alert";
 import {
@@ -24,7 +25,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@web/components/ui/card";
-import { Field, FieldGroup, FieldLabel } from "@web/components/ui/field";
 import {
 	Select,
 	SelectContent,
@@ -35,12 +35,14 @@ import {
 } from "@web/components/ui/select";
 import { Spinner } from "@web/components/ui/spinner";
 import {
-	Globe2Icon,
-	ServerIcon,
-	ShieldCheckIcon,
-	Trash2Icon,
-	TriangleAlertIcon,
-} from "lucide-react";
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@web/components/ui/table";
+import { ServerIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
 
 export const Route = createFileRoute("/app/sites")({
@@ -86,165 +88,110 @@ function RouteComponent() {
 	).length;
 
 	return (
-		<div className="space-y-6">
-			<section className="relative overflow-hidden rounded-2xl border bg-linear-to-br from-primary/10 via-background to-primary/5 p-6">
-				<div className="absolute inset-y-0 right-0 hidden w-1/3 bg-[radial-gradient(circle_at_top,hsl(var(--primary)/0.14),transparent_70%)] lg:block" />
-				<div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-					<div className="max-w-2xl space-y-3">
-						<Badge variant="secondary" className="rounded-full px-3 py-1">
-							Scraping infrastructure
-						</Badge>
-						<div className="space-y-2">
-							<h1 className="font-semibold text-3xl tracking-tight">Sites</h1>
-							<p className="max-w-xl text-muted-foreground text-sm sm:text-base">
-								Manage retail sources, scraping selectors, and market assignment
-								for every tracked site.
-							</p>
-						</div>
-					</div>
-					<AddSiteDialog countries={countries} />
-				</div>
-			</section>
+		<div className="space-y-4">
+			<PageHeader
+				title="Sites"
+				description={`${sortedSites.length} sites · ${coveredCountries} countries · ${browserSites} browser`}
+				actions={<AddSiteDialog countries={countries} />}
+			/>
 
-			<section className="grid gap-4 md:grid-cols-3">
-				<StatCard
-					label="Filtered sites"
-					value={sortedSites.length}
-					icon={<ServerIcon className="size-5" />}
-				/>
-				<StatCard
-					label="Countries covered"
-					value={coveredCountries}
-					icon={<Globe2Icon className="size-5" />}
-				/>
-				<StatCard
-					label="Browser strategy"
-					value={browserSites}
-					icon={<ShieldCheckIcon className="size-5" />}
-				/>
-			</section>
+			{/* Filters */}
+			<div className="flex items-center gap-2">
+				<Select
+					items={countries.map((c) => ({ label: c.name, value: c.id }))}
+					value={countryIdFilter}
+					onValueChange={(v) => setCountryIdFilter(v)}
+				>
+					<SelectTrigger className="w-48">
+						<SelectValue placeholder="All countries" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectGroup>
+							{countries.map((country) => (
+								<SelectItem key={country.id} value={country.id}>
+									{country.name} ({country.code})
+								</SelectItem>
+							))}
+						</SelectGroup>
+					</SelectContent>
+				</Select>
+				{countryIdFilter && (
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={() => setCountryIdFilter(null)}
+					>
+						Reset
+					</Button>
+				)}
+			</div>
 
-			<section>
+			{sortedSites.length === 0 ? (
 				<Card>
-					<CardHeader>
-						<CardTitle>Filters</CardTitle>
-						<CardDescription>
-							Narrow the site list by country when you are reviewing selectors.
-						</CardDescription>
-					</CardHeader>
-					<CardContent>
-						<FieldGroup className="sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-							<Field>
-								<FieldLabel htmlFor="sites-country-filter">Country</FieldLabel>
-								<Select
-									items={countries.map((country) => ({
-										label: country.name,
-										value: country.id,
-									}))}
-									value={countryIdFilter}
-									onValueChange={(value) => setCountryIdFilter(value)}
-								>
-									<SelectTrigger id="sites-country-filter" className="w-full">
-										<SelectValue placeholder="All countries" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectGroup>
-											{countries.map((country) => (
-												<SelectItem key={country.id} value={country.id}>
-													{country.name} ({country.code})
-												</SelectItem>
-											))}
-										</SelectGroup>
-									</SelectContent>
-								</Select>
-							</Field>
-							<Button
-								variant="outline"
-								onClick={() => setCountryIdFilter(null)}
-								disabled={!countryIdFilter}
-							>
-								Reset filter
-							</Button>
-						</FieldGroup>
+					<CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+						<div className="rounded-xl bg-muted p-3 text-muted-foreground">
+							<ServerIcon className="size-5" />
+						</div>
+						<p className="text-muted-foreground text-sm">
+							No sites found. Add a site to start tracking prices.
+						</p>
+						<AddSiteDialog countries={countries} />
 					</CardContent>
 				</Card>
-			</section>
-
-			<section>
-				<Card className="overflow-hidden pt-0">
-					<CardHeader className="border-b bg-muted/30 py-5">
-						<CardTitle>Configured sites</CardTitle>
-						<CardDescription>
-							Every entry defines the scraping selectors and strategy for one
-							host.
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="p-0">
-						{sortedSites.length === 0 ? (
-							<EmptyState
-								title="No sites found"
-								description="Add a site to start attaching items and scraping selectors."
-								action={<AddSiteDialog countries={countries} />}
-							/>
-						) : (
-							<div className="divide-y">
-								{sortedSites.map((site) => (
-									<div
-										key={site.id}
-										className="grid gap-4 px-4 py-4 transition-colors hover:bg-muted/30 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto] xl:items-center"
-									>
-										<div className="min-w-0 space-y-2">
-											<div className="flex flex-wrap items-center gap-2">
-												<p className="truncate font-medium text-base">
-													{site.name}
-												</p>
-												<Badge variant="outline">{site.country.code}</Badge>
-												<Badge>{site.strategy}</Badge>
-											</div>
-											<p className="truncate text-muted-foreground text-sm">
-												{site.hostname} · {site.country.name} ·{" "}
-												{site.country.currency}
-											</p>
-										</div>
-
-										<div className="grid gap-2 sm:grid-cols-3">
-											<div className="rounded-lg border bg-background px-3 py-2">
-												<p className="text-muted-foreground text-xs uppercase tracking-[0.24em]">
-													Price selector
-												</p>
-												<p className="mt-1 truncate font-mono text-sm">
-													{site.priceCssSelector}
-												</p>
-											</div>
-											<div className="rounded-lg border bg-background px-3 py-2">
-												<p className="text-muted-foreground text-xs uppercase tracking-[0.24em]">
-													Price divisor
-												</p>
-												<p className="mt-1 font-mono text-sm">
-													{site.priceDivisor}
-												</p>
-											</div>
-											<div className="rounded-lg border bg-background px-3 py-2">
-												<p className="text-muted-foreground text-xs uppercase tracking-[0.24em]">
-													Name selector
-												</p>
-												<p className="mt-1 truncate font-mono text-sm">
-													{site.nameCssSelector}
-												</p>
-											</div>
-										</div>
-
-										<div className="flex items-center gap-2 xl:justify-end">
+			) : (
+				<Card className="overflow-hidden p-0">
+					<Table>
+						<TableHeader>
+							<TableRow className="hover:bg-transparent">
+								<TableHead>Name</TableHead>
+								<TableHead>Hostname</TableHead>
+								<TableHead className="w-28">Country</TableHead>
+								<TableHead className="w-24">Strategy</TableHead>
+								<TableHead>Price selector</TableHead>
+								<TableHead className="w-16">Divisor</TableHead>
+								<TableHead className="w-20 text-right">Actions</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{sortedSites.map((site) => (
+								<TableRow key={site.id}>
+									<TableCell className="font-medium">{site.name}</TableCell>
+									<TableCell className="text-muted-foreground">
+										{site.hostname}
+									</TableCell>
+									<TableCell>
+										<Badge variant="outline" className="text-xs">
+											{site.country.code}
+										</Badge>
+									</TableCell>
+									<TableCell>
+										<Badge
+											variant={
+												site.strategy === "browser" ? "default" : "secondary"
+											}
+											className="text-xs"
+										>
+											{site.strategy}
+										</Badge>
+									</TableCell>
+									<TableCell className="max-w-40 truncate font-mono text-muted-foreground text-xs">
+										{site.priceCssSelector}
+									</TableCell>
+									<TableCell className="font-mono text-xs">
+										{site.priceDivisor}
+									</TableCell>
+									<TableCell className="text-right">
+										<div className="flex items-center justify-end gap-1">
 											<EditSiteDialog site={site} countries={countries} />
 											<DeleteSiteButton site={site} />
 										</div>
-									</div>
-								))}
-							</div>
-						)}
-					</CardContent>
+									</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
 				</Card>
-			</section>
+			)}
 		</div>
 	);
 }
@@ -313,54 +260,5 @@ function DeleteSiteButton({
 				</AlertDialogFooter>
 			</AlertDialogContent>
 		</AlertDialog>
-	);
-}
-
-function StatCard({
-	label,
-	value,
-	icon,
-}: {
-	label: string;
-	value: number;
-	icon: React.ReactNode;
-}) {
-	return (
-		<Card>
-			<CardHeader>
-				<div className="flex items-center justify-between gap-3">
-					<div>
-						<CardDescription>{label}</CardDescription>
-						<CardTitle className="mt-2 text-3xl">{value}</CardTitle>
-					</div>
-					<div className="rounded-xl bg-primary/10 p-3 text-primary">
-						{icon}
-					</div>
-				</div>
-			</CardHeader>
-		</Card>
-	);
-}
-
-function EmptyState({
-	title,
-	description,
-	action,
-}: {
-	title: string;
-	description: string;
-	action: React.ReactNode;
-}) {
-	return (
-		<div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-			<div className="rounded-2xl bg-muted p-4 text-muted-foreground">
-				<ServerIcon className="size-6" />
-			</div>
-			<div className="space-y-1">
-				<p className="font-medium text-base">{title}</p>
-				<p className="text-muted-foreground text-sm">{description}</p>
-			</div>
-			{action}
-		</div>
 	);
 }

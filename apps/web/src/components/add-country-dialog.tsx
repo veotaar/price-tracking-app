@@ -22,7 +22,7 @@ import {
 import {
 	Field,
 	FieldContent,
-	FieldDescription,
+	// FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
@@ -38,12 +38,7 @@ import {
 	SelectValue,
 } from "@web/components/ui/select";
 import { type } from "arktype";
-import {
-	Globe2Icon,
-	PencilIcon,
-	PlusIcon,
-	TriangleAlertIcon,
-} from "lucide-react";
+import { PencilIcon, PlusIcon, TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
 
 import { Spinner } from "./ui/spinner";
@@ -250,9 +245,6 @@ function CountryDialog({
 												placeholder="Germany"
 												required
 											/>
-											<FieldDescription>
-												Use the display name you want admins to see.
-											</FieldDescription>
 											{isInvalid && (
 												<FieldError errors={field.state.meta.errors} />
 											)}
@@ -286,9 +278,6 @@ function CountryDialog({
 												maxLength={2}
 												required
 											/>
-											<FieldDescription>
-												Two-letter country code.
-											</FieldDescription>
 											{isInvalid && (
 												<FieldError errors={field.state.meta.errors} />
 											)}
@@ -345,9 +334,7 @@ function CountryDialog({
 												</SelectGroup>
 											</SelectContent>
 										</Select>
-										<FieldDescription>
-											This is used when normalizing and displaying prices.
-										</FieldDescription>
+
 										{isInvalid && (
 											<FieldError errors={field.state.meta.errors} />
 										)}
@@ -373,31 +360,13 @@ function CountryDialog({
 											className="mt-0.5 size-4 rounded border-input accent-primary"
 										/>
 										<FieldContent>
-											<FieldTitle>EU member state</FieldTitle>
-											<FieldDescription>
-												Use this for VAT and regional market rules that depend
-												on EU membership.
-											</FieldDescription>
+											<FieldTitle>EU member</FieldTitle>
+											{/* <FieldDescription>EU membership.</FieldDescription> */}
 										</FieldContent>
 									</FieldLabel>
 								</Field>
 							)}
 						/>
-
-						<div className="rounded-xl border bg-muted/30 p-4">
-							<div className="flex items-start gap-3">
-								<div className="rounded-lg bg-primary/10 p-2 text-primary">
-									<Globe2Icon className="size-4" />
-								</div>
-								<div className="space-y-1">
-									<p className="font-medium text-sm">Before you save</p>
-									<p className="text-muted-foreground text-sm">
-										Keep names human-readable and codes uppercase so site and
-										item records stay consistent across the admin UI.
-									</p>
-								</div>
-							</div>
-						</div>
 					</FieldGroup>
 					<DialogFooter>
 						<DialogClose render={<Button variant="outline" />}>
@@ -441,7 +410,7 @@ export function AddCountryDialog() {
 				euMember: true,
 			}}
 			title="Add country"
-			description="Create a new country record with its ISO-style code and billing currency so sites can be assigned to the correct market."
+			description="Add a country with its code and currency."
 			submitLabel="Create country"
 		/>
 	);
@@ -465,7 +434,7 @@ export function EditCountryDialog({ country }: { country: EditableCountry }) {
 				euMember: country.euMember,
 			}}
 			title={`Edit ${country.name}`}
-			description="Update the country name, code, or currency. Changes apply anywhere this market is used in the admin UI."
+			description="Update this country's details."
 			submitLabel="Save changes"
 		/>
 	);

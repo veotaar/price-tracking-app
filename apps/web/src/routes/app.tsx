@@ -1,17 +1,6 @@
-import {
-	createFileRoute,
-	Link,
-	Outlet,
-	redirect,
-} from "@tanstack/react-router";
-import { ModeToggle } from "@web/components/mode-toggle";
-import {
-	NavigationMenu,
-	NavigationMenuItem,
-	NavigationMenuLink,
-	NavigationMenuList,
-	navigationMenuTriggerStyle,
-} from "@web/components/ui/navigation-menu";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { AppSidebar } from "@web/components/app-sidebar";
+import { TooltipProvider } from "@web/components/ui/tooltip";
 
 export const Route = createFileRoute("/app")({
 	beforeLoad: ({ context: { auth } }) => {
@@ -22,39 +11,12 @@ export const Route = createFileRoute("/app")({
 	component: RouteComponent,
 });
 
-const navLinks = [
-	{ to: "/app/countries", label: "Countries" },
-	{ to: "/app/sites", label: "Sites" },
-	{ to: "/app/items", label: "Items" },
-	{ to: "/app/products", label: "Products" },
-] as const;
-
 function RouteComponent() {
 	return (
-		<div>
-			<div className="flex justify-center pt-4">
-				<NavigationMenu>
-					<NavigationMenuList>
-						{navLinks.map(({ to, label }) => (
-							<NavigationMenuItem key={to}>
-								<NavigationMenuLink
-									render={<Link to={to} />}
-									className={navigationMenuTriggerStyle()}
-								>
-									{label}
-								</NavigationMenuLink>
-							</NavigationMenuItem>
-						))}
-						<NavigationMenuItem>
-							<ModeToggle />
-						</NavigationMenuItem>
-					</NavigationMenuList>
-				</NavigationMenu>
-			</div>
-
-			<div className="m-4 mx-auto min-h-dvh max-w-6xl p-4">
+		<TooltipProvider>
+			<AppSidebar>
 				<Outlet />
-			</div>
-		</div>
+			</AppSidebar>
+		</TooltipProvider>
 	);
 }
