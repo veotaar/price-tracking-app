@@ -4,6 +4,7 @@ import env from "@api/env";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, openAPI } from "better-auth/plugins";
+import { redis } from "bun";
 
 export const auth = betterAuth({
 	appName: "App Name",
@@ -54,6 +55,18 @@ export const auth = betterAuth({
 			sameSite: "none",
 			secure: true,
 			partitioned: true,
+		},
+	},
+	secondaryStorage: {
+		get: async (key) => await redis.get(key),
+		set: async (key, value, ttl) => {
+			if (ttl) {
+				await redis.set(key, value);
+				await redis.expire(key, ttl);
+			} else await redis.set(key, value);
+		},
+		delete: async (key) => {
+			await redis.del(key);
 		},
 	},
 	plugins: [admin(), openAPI()],
