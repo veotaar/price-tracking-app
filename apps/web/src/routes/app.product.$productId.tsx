@@ -609,7 +609,7 @@ function RouteComponent() {
 							</TabsContent>
 
 							<TabsContent value="chart" className="space-y-3">
-								<div className="max-h-128 overflow-y-auto pr-2">
+								<div>
 									<ChartContainer
 										config={currentPricesChartConfig}
 										className="aspect-auto min-h-80 w-full min-w-0"
