@@ -11,7 +11,11 @@
 			"@web/*": ["src/*"],
 			"@web/dist/*": ["dist/*"],
 			"@api": ["../api/src/index.ts"],
-			"@api/*": ["../api/src/*"]
+			"@api/*": ["../api/src/*"],
+			"@web-public/*": ["../web-public/src/*"],
+			"@web-public/dist/*": ["../web-public/dist/*"],
+			"@api-public": ["../api-public/src/index.ts"],
+			"@api-public/*": ["../api-public/src/*"]
 		}
 		// "paths": {
 		//   "@/*": ["./src/*"]

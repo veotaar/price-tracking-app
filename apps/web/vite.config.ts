@@ -14,6 +14,9 @@ export default defineConfig({
 		react(),
 		tailwindcss(),
 	],
+	server: {
+		port: 5173,
+	},
 	resolve: {
 		alias: {
 			"@web": path.resolve(__dirname, "./src"),
