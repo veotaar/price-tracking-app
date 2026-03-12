@@ -20,7 +20,11 @@
 			"@web/*": ["apps/web/src/*"],
 			"@web/dist/*": ["apps/web/dist/*"],
 			"@api": ["apps/api/src/index.ts"],
-			"@api/*": ["apps/api/src/*"]
+			"@api/*": ["apps/api/src/*"],
+			"@web-public/*": ["apps/web-public/src/*"],
+			"@web-public/dist/*": ["apps/web-public/dist/*"],
+			"@api-public": ["apps/api-public/src/index.ts"],
+			"@api-public/*": ["apps/api-public/src/*"]
 		}
 	}
 }

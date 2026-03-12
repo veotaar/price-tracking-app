@@ -1,0 +1,33 @@
+import { cors } from "@elysiajs/cors";
+import { fromTypes, openapi } from "@elysiajs/openapi";
+import { serverTiming } from "@elysiajs/server-timing";
+import { Elysia } from "elysia";
+import * as z from "zod";
+import env from "./env";
+
+const app = new Elysia({ prefix: "/api" })
+	.use(
+		cors({
+			origin: [env.FRONTEND_URL, `http://localhost:${env.PORT}`],
+			methods: ["GET", "OPTIONS"],
+			allowedHeaders: ["Content-Type", "User-Agent"],
+		}),
+	)
+	.use(serverTiming())
+	.use(
+		openapi({
+			references: fromTypes(),
+			path: "/openapi",
+			mapJsonSchema: {
+				zod: z.toJSONSchema,
+			},
+		}),
+	)
+	.get("/health", () => "OK")
+	.listen(env.PORT);
+
+export type AppPublic = typeof app;
+
+console.log(
+	`🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
+);

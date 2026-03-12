@@ -1,9 +1,9 @@
 {
 	"compilerOptions": {
 		"tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
-		"target": "ES2022",
+		"target": "ES2023",
 		"useDefineForClassFields": true,
-		"lib": ["ES2022", "DOM", "DOM.Iterable"],
+		"lib": ["ES2023", "DOM", "DOM.Iterable"],
 		"module": "ESNext",
 		"types": ["vite/client"],
 		"skipLibCheck": true,
@@ -28,12 +28,12 @@
 		//   "@/*": ["./src/*"]
 		// }
 		"paths": {
-			"@web/*": ["src/*"],
-			"@web/dist/*": ["dist/*"],
+			"@web-public/*": ["src/*"],
+			"@web-public/dist/*": ["dist/*"],
 			"@api": ["../api/src/index.ts"],
 			"@api/*": ["../api/src/*"],
-			"@web-public": ["../web-public/src/index.ts"],
-			"@web-public/*": ["../web-public/src/*"],
+			"@web/*": ["../web/src/*"],
+			"@web/dist/*": ["../web/dist/*"],
 			"@api-public": ["../api-public/src/index.ts"],
 			"@api-public/*": ["../api-public/src/*"]
 		}
