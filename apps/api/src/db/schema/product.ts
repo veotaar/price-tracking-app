@@ -1,11 +1,12 @@
 import { relations } from "drizzle-orm";
-import { pgTable, text } from "drizzle-orm/pg-core";
+import { boolean, pgTable, text } from "drizzle-orm/pg-core";
 import { idField, timestamps } from "../helpers";
 import { productItem } from "./product-item";
 
 export const product = pgTable("product", {
 	id: idField,
 	name: text("name").notNull(),
+	published: boolean("published").notNull().default(false),
 	...timestamps,
 });
 
