@@ -9,15 +9,15 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@bull-board/api": "^6.20.3",
-		"@bull-board/ui": "^6.20.3",
+		"@bull-board/api": "^6.20.5",
+		"@bull-board/ui": "^6.20.5",
 		"@elysiajs/cors": "^1.4.1",
 		"@elysiajs/openapi": "^1.4.14",
 		"@elysiajs/server-timing": "^1.4.0",
-		"better-auth": "^1.5.0",
-		"bullmq": "^5.70.1",
+		"better-auth": "^1.5.5",
+		"bullmq": "^5.71.0",
 		"cheerio": "^1.2.0",
-		"cloakbrowser": "^0.2.1",
+		"cloakbrowser": "^0.3.14",
 		"drizzle-orm": "^0.45.1",
 		"drizzle-zod": "^0.8.3",
 		"elysia": "latest",
@@ -26,9 +26,9 @@
 	},
 	"devDependencies": {
 		"@repo/typescript-config": "workspace:*",
-		"@types/bun": "^1.3.9",
+		"@types/bun": "^1.3.10",
 		"drizzle-kit": "^0.31.9",
-		"pg": "^8.19.0"
+		"pg": "^8.20.0"
 	},
 	"module": "src/index.js"
 }
