@@ -106,6 +106,12 @@ function RouteComponent() {
 											<CardTitle className="truncate text-base">
 												{product.name}
 											</CardTitle>
+											<Badge
+												variant={product.published ? "default" : "secondary"}
+												className="shrink-0 text-xs"
+											>
+												{product.published ? "Published" : "Draft"}
+											</Badge>
 											<Badge variant="outline" className="shrink-0 text-xs">
 												{product.productItems.length} linked
 											</Badge>
@@ -190,7 +196,7 @@ function RouteComponent() {
 function DeleteProductButton({
 	product,
 }: {
-	product: { id: string; name: string };
+	product: { id: string; name: string; published?: boolean };
 }) {
 	const queryClient = useQueryClient();
 	const [open, setOpen] = useState(false);

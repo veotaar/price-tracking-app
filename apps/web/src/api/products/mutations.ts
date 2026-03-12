@@ -9,7 +9,7 @@ export type ProductsPaginationInput = {
 
 export type CreateProductInput = Pick<
 	Treaty.Data<typeof client.api.products.post>,
-	"name"
+	"name" | "published"
 >;
 
 export type UpdateProductInput = CreateProductInput & {

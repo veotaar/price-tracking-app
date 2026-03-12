@@ -1,4 +1,5 @@
 import type { CurrencyCode } from "@api/modules/products/model";
+import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
 	type ProductAnalyticsFilters,
@@ -11,6 +12,7 @@ import {
 	useProduct,
 	useProductCurrentPrices,
 	useProductHistory,
+	useUpdateProduct,
 } from "@web/api/products";
 import { PageHeader } from "@web/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "@web/components/ui/alert";
@@ -42,6 +44,14 @@ import {
 	DropdownMenuTrigger,
 } from "@web/components/ui/dropdown-menu";
 import {
+	Field,
+	FieldContent,
+	FieldDescription,
+	FieldGroup,
+	FieldLabel,
+	FieldTitle,
+} from "@web/components/ui/field";
+import {
 	Select,
 	SelectContent,
 	SelectGroup,
@@ -50,6 +60,7 @@ import {
 	SelectValue,
 } from "@web/components/ui/select";
 import { Spinner } from "@web/components/ui/spinner";
+import { Switch } from "@web/components/ui/switch";
 import {
 	Table,
 	TableBody,
@@ -184,6 +195,7 @@ export const Route = createFileRoute("/app/product/$productId")({
 function RouteComponent() {
 	const { productId } = Route.useParams();
 	const loaderData = Route.useLoaderData();
+	const queryClient = useQueryClient();
 	const { data: product = loaderData.product } = useProduct(productId);
 	const countries = useMemo(() => getSelectableCountries(product), [product]);
 	const defaultCountryCodes = useMemo(
@@ -286,6 +298,15 @@ function RouteComponent() {
 	const linkedSites = new Set(
 		product.productItems.map(({ item }) => item.site.id),
 	).size;
+	const {
+		mutateAsync: updateProduct,
+		isPending: isPublishTogglePending,
+		error: publishToggleError,
+		reset: resetPublishToggle,
+	} = useUpdateProduct();
+	const [pendingPublishedState, setPendingPublishedState] = useState<
+		boolean | null
+	>(null);
 
 	return (
 		<div className="space-y-6">
@@ -302,14 +323,45 @@ function RouteComponent() {
 				</Link>
 				<PageHeader
 					title={product.name}
-					description={`${linkedItems} items · ${linkedSites} sites · ${selectedCountries.length} markets · ${displayCurrency}`}
+					description={`${linkedItems} items · ${linkedSites} sites · ${selectedCountries.length} markets · ${displayCurrency} · ${product.published ? "Published" : "Draft"}`}
 					actions={
-						<div className="flex flex-wrap gap-1">
-							{countries.map((country) => (
-								<Badge key={country.code} variant="outline">
-									{country.code}
-								</Badge>
-							))}
+						<div className="flex flex-wrap items-start justify-end gap-3">
+							<div className="flex flex-wrap gap-1">
+								{countries.map((country) => (
+									<Badge key={country.code} variant="outline">
+										{country.code}
+									</Badge>
+								))}
+							</div>
+							<PublishProductControl
+								checked={pendingPublishedState ?? product.published}
+								pending={isPublishTogglePending}
+								errorMessage={publishToggleError?.message}
+								onChange={async (nextPublished) => {
+									resetPublishToggle();
+									setPendingPublishedState(nextPublished);
+
+									try {
+										await updateProduct({
+											productId,
+											name: product.name,
+											published: nextPublished,
+										});
+
+										await Promise.all([
+											queryClient.invalidateQueries({
+												queryKey: ["product", productId],
+											}),
+											queryClient.invalidateQueries({
+												queryKey: ["products"],
+											}),
+										]);
+										setPendingPublishedState(null);
+									} catch {
+										setPendingPublishedState(null);
+									}
+								}}
+							/>
 						</div>
 					}
 				/>
@@ -713,6 +765,55 @@ function RouteComponent() {
 					)}
 				</CardContent>
 			</Card>
+		</div>
+	);
+}
+
+function PublishProductControl({
+	checked,
+	pending,
+	errorMessage,
+	onChange,
+}: {
+	checked: boolean;
+	pending: boolean;
+	errorMessage?: string;
+	onChange: (nextChecked: boolean) => Promise<void>;
+}) {
+	return (
+		<div className="min-w-64 space-y-2 rounded-lg border bg-card p-3">
+			<FieldGroup>
+				<Field orientation="horizontal" data-disabled={pending}>
+					<FieldLabel htmlFor="product-published-switch">
+						<Switch
+							id="product-published-switch"
+							checked={checked}
+							disabled={pending}
+							onCheckedChange={(nextChecked) => {
+								void onChange(nextChecked);
+							}}
+						/>
+						<FieldContent>
+							<div className="flex items-center gap-2">
+								<FieldTitle>Published</FieldTitle>
+								<Badge variant={checked ? "default" : "secondary"}>
+									{checked ? "Live" : "Draft"}
+								</Badge>
+							</div>
+							<FieldDescription>
+								Control whether this product is available for public surfaces.
+							</FieldDescription>
+						</FieldContent>
+					</FieldLabel>
+				</Field>
+			</FieldGroup>
+			{errorMessage ? (
+				<Alert variant="destructive">
+					<TriangleAlertIcon />
+					<AlertTitle>Failed to update publish state</AlertTitle>
+					<AlertDescription>{errorMessage}</AlertDescription>
+				</Alert>
+			) : null}
 		</div>
 	);
 }

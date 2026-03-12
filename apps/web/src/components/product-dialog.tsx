@@ -20,11 +20,15 @@ import {
 } from "@web/components/ui/dialog";
 import {
 	Field,
+	FieldContent,
+	FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
+	FieldTitle,
 } from "@web/components/ui/field";
 import { Input } from "@web/components/ui/input";
+import { Switch } from "@web/components/ui/switch";
 import { type } from "arktype";
 import { PencilIcon, PlusIcon, TriangleAlertIcon } from "lucide-react";
 import { useState } from "react";
@@ -35,10 +39,12 @@ const productSchema = type({
 	name: type("2 <= string <= 160").configure({
 		message: () => "Must be 2 to 160 characters",
 	}),
+	published: "boolean",
 });
 
 type ProductDialogValues = {
 	name: string;
+	published: boolean;
 };
 
 type ProductDialogProps = {
@@ -54,6 +60,7 @@ type ProductDialogProps = {
 type EditableProduct = {
 	id: string;
 	name: string;
+	published: boolean;
 };
 
 function ProductDialog({
@@ -94,6 +101,7 @@ function ProductDialog({
 
 			const payload = {
 				name: value.name.trim(),
+				published: value.published,
 			};
 
 			try {
@@ -190,6 +198,28 @@ function ProductDialog({
 								);
 							}}
 						/>
+						<form.Field
+							name="published"
+							// biome-ignore lint/correctness/noChildrenProp: tanstack form render prop
+							children={(field) => (
+								<Field orientation="horizontal">
+									<FieldLabel htmlFor={field.name}>
+										<Switch
+											id={field.name}
+											name={field.name}
+											checked={field.state.value}
+											onCheckedChange={field.handleChange}
+										/>
+										<FieldContent>
+											<FieldTitle>Published</FieldTitle>
+											<FieldDescription>
+												Published products are ready to be shown publicly.
+											</FieldDescription>
+										</FieldContent>
+									</FieldLabel>
+								</Field>
+							)}
+						/>
 					</FieldGroup>
 
 					<DialogFooter>
@@ -227,9 +257,9 @@ export function AddProductDialog() {
 					Add product
 				</Button>
 			}
-			defaultValues={{ name: "" }}
+			defaultValues={{ name: "", published: false }}
 			title="Add product"
-			description="Create a product to group items across sites."
+			description="Create a product to group items across sites and control when it is published."
 			submitLabel="Create product"
 		/>
 	);
@@ -246,9 +276,9 @@ export function EditProductDialog({ product }: { product: EditableProduct }) {
 					Edit
 				</Button>
 			}
-			defaultValues={{ name: product.name }}
+			defaultValues={{ name: product.name, published: product.published }}
 			title={`Edit ${product.name}`}
-			description="Rename this product."
+			description="Update the product name and publication state."
 			submitLabel="Save changes"
 		/>
 	);
