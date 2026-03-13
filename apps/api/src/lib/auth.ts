@@ -1,10 +1,10 @@
 import { db } from "@api/db/db";
 import { table } from "@api/db/model";
 import env from "@api/env";
+import { authSecondaryStorage } from "@api/lib/authSecondaryStorage";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, openAPI } from "better-auth/plugins";
-import { redis } from "bun";
 
 export const auth = betterAuth({
 	appName: "App Name",
@@ -37,6 +37,9 @@ export const auth = betterAuth({
 			verify: ({ hash, password }) => Bun.password.verify(password, hash),
 		},
 	},
+	session: {
+		storeSessionInDatabase: true,
+	},
 	user: {
 		additionalFields: {
 			role: {
@@ -57,17 +60,6 @@ export const auth = betterAuth({
 			partitioned: true,
 		},
 	},
-	secondaryStorage: {
-		get: async (key) => await redis.get(key),
-		set: async (key, value, ttl) => {
-			if (ttl) {
-				await redis.set(key, value);
-				await redis.expire(key, ttl);
-			} else await redis.set(key, value);
-		},
-		delete: async (key) => {
-			await redis.del(key);
-		},
-	},
+	secondaryStorage: authSecondaryStorage,
 	plugins: [admin(), openAPI()],
 });

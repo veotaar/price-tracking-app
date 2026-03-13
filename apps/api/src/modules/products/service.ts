@@ -246,7 +246,9 @@ export async function getProductPriceHistory(
 			AND pi.deleted_at IS NULL
 			${historyScopeSql}
 	`);
-	const historyBounds = historyBoundsSchema.parse(historyBoundsRows[0] ?? null);
+	const historyBounds = historyBoundsSchema.parse(
+		historyBoundsRows.rows[0] ?? null,
+	);
 	const bucketInterval = getHistoryBucketInterval(
 		historyBounds?.minTime ?? null,
 		historyBounds?.maxTime ?? null,
@@ -374,7 +376,7 @@ export async function getProductPriceHistory(
 		ORDER BY "bucket" ASC, "countryCode" ASC
 	`);
 
-	const parsedRows = z.array(historyRowSchema).parse(rows);
+	const parsedRows = z.array(historyRowSchema).parse(rows.rows);
 	const byCountry = new Map<string, ProductPriceHistorySeries>();
 
 	for (const row of parsedRows) {
@@ -508,7 +510,7 @@ export async function getProductCurrentPrices(
 		ORDER BY "convertedPrice" ASC, lp."time" DESC, lp."countryCode" ASC
 	`);
 
-	const parsedRows = z.array(currentPriceRowSchema).parse(rows);
+	const parsedRows = z.array(currentPriceRowSchema).parse(rows.rows);
 
 	return {
 		productId,

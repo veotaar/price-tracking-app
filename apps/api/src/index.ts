@@ -10,7 +10,7 @@ import { initScheduler } from "./jobs/scheduler";
 import "./jobs/workers/price-scrape.worker";
 import "./jobs/workers/exchange-rate.worker";
 import { OpenAPI } from "./lib/authOpenApi";
-import { betterAuth } from "./modules/auth";
+import { betterAuthRoutes } from "./modules/auth";
 import { countries } from "./modules/countries";
 import { items } from "./modules/items";
 import { jobs } from "./modules/jobs";
@@ -40,7 +40,7 @@ const app = new Elysia({ prefix: "/api" })
 			},
 		}),
 	)
-	.use(betterAuth)
+	.use(betterAuthRoutes)
 	.use(bullBoardPlugin)
 	.use(countries)
 	.use(sites)
