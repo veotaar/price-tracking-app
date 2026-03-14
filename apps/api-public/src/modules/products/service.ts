@@ -1,14 +1,8 @@
-import { db } from "@api/db/db";
-import { table } from "@api/db/model";
+import { db } from "@api-public/db/db";
+import { table } from "@api-public/db/model";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
-import type {
-	AddItem,
-	CurrencyCode,
-	InsertProduct,
-	ProductAnalyticsQuery,
-	UpdateProduct,
-} from "./model";
+import type { CurrencyCode, ProductAnalyticsQuery } from "./model";
 
 export type ProductPriceHistoryPoint = {
 	bucket: string;
@@ -78,12 +72,64 @@ const currentPriceRowSchema = z.object({
 
 const NOW_UTC_SQL = sql`(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')`;
 
+async function fetchProductDetail(id: string) {
+	return db.query.product.findFirst({
+		where: activePublishedProductCondition(id),
+		with: {
+			productItems: {
+				where: isNull(table.productItem.deletedAt),
+				with: {
+					item: {
+						with: {
+							site: {
+								with: {
+									country: true,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	});
+}
+
+type ProductDetailRecord = Awaited<ReturnType<typeof fetchProductDetail>>;
+
+function isActiveProductItem(
+	productItem: NonNullable<ProductDetailRecord>["productItems"][number],
+) {
+	return (
+		productItem.item.deletedAt === null &&
+		productItem.item.site.deletedAt === null &&
+		productItem.item.site.country.deletedAt === null
+	);
+}
+
+function sanitizeProductRelations(product: ProductDetailRecord) {
+	if (!product) {
+		return product;
+	}
+
+	return {
+		...product,
+		productItems: product.productItems.filter(isActiveProductItem),
+	};
+}
+
+const activePublishedProductCondition = (productId: string) =>
+	and(
+		eq(table.product.id, productId),
+		eq(table.product.published, true),
+		isNull(table.product.deletedAt),
+	);
+
 async function getActiveProductRecord(id: string) {
 	return db.query.product.findFirst({
 		columns: {
 			id: true,
 		},
-		where: and(eq(table.product.id, id), isNull(table.product.deletedAt)),
+		where: activePublishedProductCondition(id),
 	});
 }
 
@@ -162,12 +208,27 @@ export async function listProducts(page: number, limit: number) {
 	const offset = (page - 1) * limit;
 
 	const rows = await db.query.product.findMany({
-		where: isNull(table.product.deletedAt),
+		where: and(
+			eq(table.product.published, true),
+			isNull(table.product.deletedAt),
+		),
 		limit,
 		offset,
+		orderBy: (product, { asc }) => [asc(product.name), asc(product.id)],
 		with: {
 			productItems: {
-				with: { item: true },
+				where: isNull(table.productItem.deletedAt),
+				with: {
+					item: {
+						with: {
+							site: {
+								with: {
+									country: true,
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 	});
@@ -175,11 +236,18 @@ export async function listProducts(page: number, limit: number) {
 	const countResult = await db
 		.select({ count: sql<number>`count(*)::int` })
 		.from(table.product)
-		.where(isNull(table.product.deletedAt));
+		.where(
+			and(eq(table.product.published, true), isNull(table.product.deletedAt)),
+		);
 	const count = countResult[0]?.count ?? 0;
 
 	return {
-		data: rows,
+		data: rows.map((product) => ({
+			...product,
+			productItems: product.productItems.filter(
+				(productItem) => productItem.item.deletedAt === null,
+			),
+		})),
 		pagination: {
 			page,
 			limit,
@@ -190,18 +258,9 @@ export async function listProducts(page: number, limit: number) {
 }
 
 export async function getProduct(id: string) {
-	return db.query.product.findFirst({
-		where: and(eq(table.product.id, id), isNull(table.product.deletedAt)),
-		with: {
-			productItems: {
-				with: {
-					item: {
-						with: { site: { with: { country: true } } },
-					},
-				},
-			},
-		},
-	});
+	const product = await fetchProductDetail(id);
+
+	return sanitizeProductRelations(product);
 }
 
 export async function getProductPriceHistory(
@@ -234,6 +293,10 @@ export async function getProductPriceHistory(
 			MIN(p.time) AS "minTime",
 			LEAST(MAX(p.time), ${NOW_UTC_SQL}) AS "maxTime"
 		FROM product_item pi
+		JOIN product pr
+			ON pr.id = pi.product_id
+			AND pr.deleted_at IS NULL
+			AND pr.published = true
 		JOIN item i
 			ON i.id = pi.item_id
 			AND i.deleted_at IS NULL
@@ -326,6 +389,10 @@ export async function getProductPriceHistory(
 					ELSE NULL
 				END AS "price"
 			FROM product_item pi
+			JOIN product pr
+				ON pr.id = pi.product_id
+				AND pr.deleted_at IS NULL
+				AND pr.published = true
 			JOIN item i
 				ON i.id = pi.item_id
 				AND i.deleted_at IS NULL
@@ -448,6 +515,10 @@ export async function getProductCurrentPrices(
 				c.code AS "countryCode",
 				c.name AS "countryName"
 			FROM product_item pi
+			JOIN product pr
+				ON pr.id = pi.product_id
+				AND pr.deleted_at IS NULL
+				AND pr.published = true
 			JOIN item i
 				ON i.id = pi.item_id
 				AND i.deleted_at IS NULL
@@ -533,66 +604,4 @@ export async function getProductCurrentPrices(
 			time: row.time.toISOString(),
 		})),
 	};
-}
-
-export async function createProduct(data: InsertProduct) {
-	const [row] = await db.insert(table.product).values(data).returning();
-	return row;
-}
-
-export async function updateProduct(id: string, data: UpdateProduct) {
-	const [row] = await db
-		.update(table.product)
-		.set(data)
-		.where(and(eq(table.product.id, id), isNull(table.product.deletedAt)))
-		.returning();
-	return row;
-}
-
-export async function deleteProduct(id: string) {
-	const [row] = await db
-		.update(table.product)
-		.set({ deletedAt: new Date() })
-		.where(and(eq(table.product.id, id), isNull(table.product.deletedAt)))
-		.returning();
-	return row;
-}
-
-export async function linkItemToProduct(
-	productId: string,
-	{ itemId }: AddItem,
-) {
-	const product = await db.query.product.findFirst({
-		where: and(
-			eq(table.product.id, productId),
-			isNull(table.product.deletedAt),
-		),
-	});
-	if (!product) return null;
-
-	const item = await db.query.item.findFirst({
-		where: and(eq(table.item.id, itemId), isNull(table.item.deletedAt)),
-	});
-	if (!item) return undefined;
-
-	const [row] = await db
-		.insert(table.productItem)
-		.values({ productId, itemId })
-		.onConflictDoNothing()
-		.returning();
-
-	return row ?? { productId, itemId };
-}
-
-export async function unlinkItemFromProduct(productId: string, itemId: string) {
-	const [row] = await db
-		.delete(table.productItem)
-		.where(
-			and(
-				eq(table.productItem.productId, productId),
-				eq(table.productItem.itemId, itemId),
-			),
-		)
-		.returning();
-	return row;
 }

@@ -4,6 +4,7 @@ import { serverTiming } from "@elysiajs/server-timing";
 import { Elysia } from "elysia";
 import * as z from "zod";
 import env from "./env";
+import { products } from "./modules/products";
 
 const app = new Elysia({ prefix: "/api" })
 	.use(
@@ -23,6 +24,7 @@ const app = new Elysia({ prefix: "/api" })
 			},
 		}),
 	)
+	.use(products)
 	.get("/health", () => "OK")
 	.listen(env.PORT);
 
