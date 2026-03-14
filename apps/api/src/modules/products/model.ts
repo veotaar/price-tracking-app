@@ -17,8 +17,34 @@ export const updateProductSchema = createUpdateSchema(table.product).omit({
 	deletedAt: true,
 });
 
+const normalizationFactorSchema = z.preprocess(
+	(value) => {
+		if (value === undefined || value === null || value === "") {
+			return undefined;
+		}
+
+		if (typeof value === "number" && Number.isFinite(value)) {
+			return value.toString();
+		}
+
+		if (typeof value === "string") {
+			return value.trim();
+		}
+
+		return value;
+	},
+	z
+		.string()
+		.regex(/^\d+(?:\.\d+)?$/)
+		.refine((value) => Number(value) > 0, {
+			message: "normalizationFactor must be greater than 0",
+		})
+		.optional(),
+);
+
 export const addItemSchema = z.object({
 	itemId: z.string().min(1),
+	normalizationFactor: normalizationFactorSchema,
 });
 
 const countryCodesSchema = z.preprocess((value) => {

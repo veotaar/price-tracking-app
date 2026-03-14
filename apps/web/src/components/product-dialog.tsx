@@ -39,11 +39,15 @@ const productSchema = type({
 	name: type("2 <= string <= 160").configure({
 		message: () => "Must be 2 to 160 characters",
 	}),
+	comparisonBasis: type("string <= 80").configure({
+		message: () => "Must be 80 characters or fewer",
+	}),
 	published: "boolean",
 });
 
 type ProductDialogValues = {
 	name: string;
+	comparisonBasis: string;
 	published: boolean;
 };
 
@@ -60,6 +64,7 @@ type ProductDialogProps = {
 type EditableProduct = {
 	id: string;
 	name: string;
+	comparisonBasis: string | null;
 	published: boolean;
 };
 
@@ -101,6 +106,7 @@ function ProductDialog({
 
 			const payload = {
 				name: value.name.trim(),
+				comparisonBasis: value.comparisonBasis.trim() || null,
 				published: value.published,
 			};
 
@@ -199,6 +205,37 @@ function ProductDialog({
 							}}
 						/>
 						<form.Field
+							name="comparisonBasis"
+							// biome-ignore lint/correctness/noChildrenProp: tanstack form render prop
+							children={(field) => {
+								const isInvalid =
+									field.state.meta.isTouched && !field.state.meta.isValid;
+
+								return (
+									<Field data-invalid={isInvalid}>
+										<FieldLabel htmlFor={field.name}>
+											Comparison basis
+										</FieldLabel>
+										<Input
+											id={field.name}
+											name={field.name}
+											value={field.state.value}
+											onBlur={field.handleBlur}
+											onChange={(e) => field.handleChange(e.target.value)}
+											placeholder="per 100 g"
+										/>
+										<FieldDescription>
+											Optional label used to explain normalized price
+											comparisons.
+										</FieldDescription>
+										{isInvalid && (
+											<FieldError errors={field.state.meta.errors} />
+										)}
+									</Field>
+								);
+							}}
+						/>
+						<form.Field
 							name="published"
 							// biome-ignore lint/correctness/noChildrenProp: tanstack form render prop
 							children={(field) => (
@@ -257,7 +294,7 @@ export function AddProductDialog() {
 					Add product
 				</Button>
 			}
-			defaultValues={{ name: "", published: false }}
+			defaultValues={{ name: "", comparisonBasis: "", published: false }}
 			title="Add product"
 			description="Create a product to group items across sites and control when it is published."
 			submitLabel="Create product"
@@ -276,7 +313,11 @@ export function EditProductDialog({ product }: { product: EditableProduct }) {
 					Edit
 				</Button>
 			}
-			defaultValues={{ name: product.name, published: product.published }}
+			defaultValues={{
+				name: product.name,
+				comparisonBasis: product.comparisonBasis ?? "",
+				published: product.published,
+			}}
 			title={`Edit ${product.name}`}
 			description="Update the product name and publication state."
 			submitLabel="Save changes"

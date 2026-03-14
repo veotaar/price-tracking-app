@@ -25,6 +25,7 @@ export type ProductPriceHistorySeries = {
 export type ProductPriceHistoryResponse = {
 	productId: string;
 	displayCurrency: CurrencyCode;
+	comparisonBasis: string | null;
 	series: ProductPriceHistorySeries[];
 };
 
@@ -41,6 +42,8 @@ export type ProductCurrentPriceRow = {
 	countryName: string;
 	originalPrice: number;
 	originalCurrency: CurrencyCode;
+	normalizedPrice: number;
+	normalizationFactor: number;
 	convertedPrice: number;
 	time: string;
 };
@@ -48,6 +51,7 @@ export type ProductCurrentPriceRow = {
 export type ProductCurrentPricesResponse = {
 	productId: string;
 	displayCurrency: CurrencyCode;
+	comparisonBasis: string | null;
 	data: ProductCurrentPriceRow[];
 };
 
@@ -73,6 +77,8 @@ const currentPriceRowSchema = z.object({
 	countryName: z.string().min(1),
 	originalPrice: z.coerce.number(),
 	originalCurrency: z.string().min(3),
+	normalizedPrice: z.coerce.number(),
+	normalizationFactor: z.coerce.number(),
 	convertedPrice: z.coerce.number(),
 	time: z.coerce.date(),
 });
@@ -83,6 +89,7 @@ async function getActiveProductRecord(id: string) {
 	return db.query.product.findFirst({
 		columns: {
 			id: true,
+			comparisonBasis: true,
 		},
 		where: and(eq(table.product.id, id), isNull(table.product.deletedAt)),
 	});
@@ -235,6 +242,7 @@ export async function getProductPriceHistory(
 				return {
 					productId,
 					displayCurrency: currency,
+					comparisonBasis: product.comparisonBasis,
 					series: [],
 				};
 			}
@@ -336,13 +344,14 @@ export async function getProductPriceHistory(
 				c.name AS "countryName",
 				c.eu_member AS "euMember",
 				CASE
-					WHEN p.currency = ${currency} THEN p.price::numeric
+					WHEN p.currency = ${currency}
+						THEN p.price::numeric * COALESCE(pi.normalization_factor, 1::numeric)
 					WHEN p.currency = 'EUR' AND er_target.rate IS NOT NULL
-						THEN p.price::numeric * er_target.rate::numeric
+						THEN (p.price::numeric * COALESCE(pi.normalization_factor, 1::numeric)) * er_target.rate::numeric
 					WHEN ${currency} = 'EUR' AND er_source.rate IS NOT NULL
-						THEN p.price::numeric / er_source.rate::numeric
+						THEN (p.price::numeric * COALESCE(pi.normalization_factor, 1::numeric)) / er_source.rate::numeric
 					WHEN er_source.rate IS NOT NULL AND er_target.rate IS NOT NULL
-						THEN (p.price::numeric / er_source.rate::numeric) * er_target.rate::numeric
+						THEN ((p.price::numeric * COALESCE(pi.normalization_factor, 1::numeric)) / er_source.rate::numeric) * er_target.rate::numeric
 					ELSE NULL
 				END AS "price"
 			FROM product_item pi
@@ -425,6 +434,7 @@ export async function getProductPriceHistory(
 			return {
 				productId,
 				displayCurrency: currency,
+				comparisonBasis: product.comparisonBasis,
 				series: [...byCountry.values()],
 			};
 		},
@@ -457,6 +467,8 @@ export async function getProductCurrentPrices(
 					countryName: string;
 					originalPrice: string | number;
 					originalCurrency: string;
+					normalizedPrice: string | number;
+					normalizationFactor: string | number;
 					convertedPrice: string | number;
 					time: Date | string;
 				}>
@@ -466,6 +478,8 @@ export async function getProductCurrentPrices(
 				p.item_id AS "itemId",
 				p.price::numeric AS "originalPrice",
 				p.currency AS "originalCurrency",
+				COALESCE(pi.normalization_factor, 1::numeric) AS "normalizationFactor",
+				p.price::numeric * COALESCE(pi.normalization_factor, 1::numeric) AS "normalizedPrice",
 				p.time AS "time",
 				i.name AS "itemName",
 				i.url AS "itemUrl",
@@ -499,14 +513,16 @@ export async function getProductCurrentPrices(
 			lp."countryName",
 			lp."originalPrice",
 			lp."originalCurrency",
+			lp."normalizedPrice",
+			lp."normalizationFactor",
 			CASE
-				WHEN lp."originalCurrency" = ${currency} THEN lp."originalPrice"
+				WHEN lp."originalCurrency" = ${currency} THEN lp."normalizedPrice"
 				WHEN lp."originalCurrency" = 'EUR' AND er_target.rate IS NOT NULL
-					THEN lp."originalPrice" * er_target.rate::numeric
+					THEN lp."normalizedPrice" * er_target.rate::numeric
 				WHEN ${currency} = 'EUR' AND er_source.rate IS NOT NULL
-					THEN lp."originalPrice" / er_source.rate::numeric
+					THEN lp."normalizedPrice" / er_source.rate::numeric
 				WHEN er_source.rate IS NOT NULL AND er_target.rate IS NOT NULL
-					THEN (lp."originalPrice" / er_source.rate::numeric) * er_target.rate::numeric
+					THEN (lp."normalizedPrice" / er_source.rate::numeric) * er_target.rate::numeric
 				ELSE NULL
 			END AS "convertedPrice",
 			lp."time"
@@ -528,13 +544,13 @@ export async function getProductCurrentPrices(
 			LIMIT 1
 		) er_target ON true
 		WHERE CASE
-			WHEN lp."originalCurrency" = ${currency} THEN lp."originalPrice"
+			WHEN lp."originalCurrency" = ${currency} THEN lp."normalizedPrice"
 			WHEN lp."originalCurrency" = 'EUR' AND er_target.rate IS NOT NULL
-				THEN lp."originalPrice" * er_target.rate::numeric
+				THEN lp."normalizedPrice" * er_target.rate::numeric
 			WHEN ${currency} = 'EUR' AND er_source.rate IS NOT NULL
-				THEN lp."originalPrice" / er_source.rate::numeric
+				THEN lp."normalizedPrice" / er_source.rate::numeric
 			WHEN er_source.rate IS NOT NULL AND er_target.rate IS NOT NULL
-				THEN (lp."originalPrice" / er_source.rate::numeric) * er_target.rate::numeric
+				THEN (lp."normalizedPrice" / er_source.rate::numeric) * er_target.rate::numeric
 			ELSE NULL
 		END IS NOT NULL
 		ORDER BY "convertedPrice" ASC, lp."time" DESC, lp."countryCode" ASC
@@ -545,6 +561,7 @@ export async function getProductCurrentPrices(
 			return {
 				productId,
 				displayCurrency: currency,
+				comparisonBasis: product.comparisonBasis,
 				data: parsedRows.map((row) => ({
 					itemId: row.itemId,
 					itemName: row.itemName,
@@ -555,6 +572,8 @@ export async function getProductCurrentPrices(
 					countryName: row.countryName,
 					originalPrice: row.originalPrice,
 					originalCurrency: row.originalCurrency as CurrencyCode,
+					normalizedPrice: row.normalizedPrice,
+					normalizationFactor: row.normalizationFactor,
 					convertedPrice: row.convertedPrice,
 					time: row.time.toISOString(),
 				})),
@@ -588,7 +607,7 @@ export async function deleteProduct(id: string) {
 
 export async function linkItemToProduct(
 	productId: string,
-	{ itemId }: AddItem,
+	{ itemId, normalizationFactor }: AddItem,
 ) {
 	const product = await db.query.product.findFirst({
 		where: and(
@@ -605,11 +624,21 @@ export async function linkItemToProduct(
 
 	const [row] = await db
 		.insert(table.productItem)
-		.values({ productId, itemId })
+		.values({
+			productId,
+			itemId,
+			normalizationFactor: normalizationFactor ?? "1",
+		})
 		.onConflictDoNothing()
 		.returning();
 
-	return row ?? { productId, itemId };
+	return (
+		row ?? {
+			productId,
+			itemId,
+			normalizationFactor: normalizationFactor ?? "1",
+		}
+	);
 }
 
 export async function unlinkItemFromProduct(productId: string, itemId: string) {

@@ -9,7 +9,7 @@ export type ProductsPaginationInput = {
 
 export type CreateProductInput = Pick<
 	Treaty.Data<typeof client.api.products.post>,
-	"name" | "published"
+	"name" | "published" | "comparisonBasis"
 >;
 
 export type UpdateProductInput = CreateProductInput & {
@@ -19,6 +19,7 @@ export type UpdateProductInput = CreateProductInput & {
 export type LinkProductItemInput = {
 	productId: string;
 	itemId: string;
+	normalizationFactor?: string;
 };
 
 export async function createProduct(input: CreateProductInput) {
@@ -63,10 +64,11 @@ export async function deleteProduct({ productId }: { productId: string }) {
 export async function linkItemToProduct({
 	productId,
 	itemId,
+	normalizationFactor,
 }: LinkProductItemInput) {
 	const response = await client.api
 		.products({ id: productId })
-		.items.post({ itemId });
+		.items.post({ itemId, normalizationFactor });
 
 	if (response.error) {
 		throw new Error(

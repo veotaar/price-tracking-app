@@ -18,6 +18,7 @@ import {
 	DialogTrigger,
 } from "@web/components/ui/dialog";
 import { Field, FieldGroup, FieldLabel } from "@web/components/ui/field";
+import { Input } from "@web/components/ui/input";
 import { ScrollArea } from "@web/components/ui/scroll-area";
 import {
 	Select,
@@ -59,6 +60,8 @@ export function ProductItemsDialog({
 	const queryClient = useQueryClient();
 	const [open, setOpen] = useState(false);
 	const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+	const [normalizationFactor, setNormalizationFactor] = useState("1");
+	const [validationError, setValidationError] = useState<string | null>(null);
 	const {
 		data: productDetail,
 		isPending: isLoadingProduct,
@@ -104,6 +107,8 @@ export function ProductItemsDialog({
 				setOpen(nextOpen);
 				if (!nextOpen) {
 					setSelectedItemId(null);
+					setNormalizationFactor("1");
+					setValidationError(null);
 					resetLink();
 					resetUnlink();
 				}
@@ -121,13 +126,14 @@ export function ProductItemsDialog({
 					</DialogDescription>
 				</DialogHeader>
 
-				{(productError || linkError || unlinkError) && (
+				{(productError || linkError || unlinkError || validationError) && (
 					<Alert variant="destructive">
 						<TriangleAlertIcon />
 						<AlertTitle>
 							{productError?.message ||
 								linkError?.message ||
 								unlinkError?.message ||
+								validationError ||
 								"Failed to update product items"}
 						</AlertTitle>
 						<AlertDescription>
@@ -180,18 +186,51 @@ export function ProductItemsDialog({
 							</Select>
 						</Field>
 
+						<Field>
+							<FieldLabel htmlFor={`normalization-factor-${product.id}`}>
+								Normalization factor
+							</FieldLabel>
+							<Input
+								id={`normalization-factor-${product.id}`}
+								inputMode="decimal"
+								value={normalizationFactor}
+								onChange={(event) => {
+									setNormalizationFactor(event.target.value);
+									setValidationError(null);
+								}}
+								placeholder="1"
+							/>
+						</Field>
+
 						<div className="flex justify-end">
 							<Button
 								disabled={!selectedItemId || isLinking || isUnlinking}
 								onClick={async () => {
 									if (!selectedItemId) return;
+									const trimmedFactor = normalizationFactor.trim();
+									const parsedFactor = Number(trimmedFactor);
+
+									if (
+										!trimmedFactor ||
+										!Number.isFinite(parsedFactor) ||
+										parsedFactor <= 0
+									) {
+										setValidationError(
+											"Normalization factor must be a number greater than 0.",
+										);
+										return;
+									}
+
 									try {
 										await linkItem({
 											productId: product.id,
 											itemId: selectedItemId,
+											normalizationFactor: trimmedFactor,
 										});
 										await refreshProduct();
 										setSelectedItemId(null);
+										setNormalizationFactor("1");
+										setValidationError(null);
 									} catch {
 										return;
 									}
@@ -212,6 +251,9 @@ export function ProductItemsDialog({
 									<p className="font-medium text-sm">Linked items</p>
 									<p className="text-muted-foreground text-sm">
 										These entries currently roll up into this product group.
+										{productDetail?.comparisonBasis
+											? ` Prices are normalized to ${productDetail.comparisonBasis}.`
+											: ""}
 									</p>
 								</div>
 								<Badge variant="outline">
@@ -222,45 +264,51 @@ export function ProductItemsDialog({
 							{productDetail?.productItems.length ? (
 								<ScrollArea className="h-72 w-full overflow-hidden rounded-lg">
 									<div className="space-y-3 pr-3">
-										{productDetail.productItems.map(({ item }) => (
-											<div
-												key={item.id}
-												className="flex min-w-0 flex-col gap-3 rounded-lg border bg-background p-3 sm:flex-row sm:items-center sm:justify-between"
-											>
-												<div className="min-w-0 space-y-1 sm:flex-1">
-													<p className="truncate font-medium text-sm">
-														{item.name || item.url}
-													</p>
-													<p className="truncate text-muted-foreground text-sm">
-														{item.site.name} · {item.site.country.code} ·{" "}
-														{item.url}
-													</p>
-												</div>
-												<Button
-													variant="ghost"
-													size="sm"
-													disabled={isLinking || isUnlinking}
-													onClick={async () => {
-														try {
-															await unlinkItem({
-																productId: product.id,
-																itemId: item.id,
-															});
-															await refreshProduct();
-														} catch {
-															return;
-														}
-													}}
+										{productDetail.productItems.map(
+											({ item, normalizationFactor: factor }) => (
+												<div
+													key={item.id}
+													className="flex min-w-0 flex-col gap-3 rounded-lg border bg-background p-3 sm:flex-row sm:items-center sm:justify-between"
 												>
-													{isUnlinking ? (
-														<Spinner className="size-4" />
-													) : (
-														<UnlinkIcon data-icon="inline-start" />
-													)}
-													Unlink
-												</Button>
-											</div>
-										))}
+													<div className="min-w-0 space-y-1 sm:flex-1">
+														<p className="truncate font-medium text-sm">
+															{item.name || item.url}
+														</p>
+														<p className="truncate text-muted-foreground text-sm">
+															{item.site.name} · {item.site.country.code} ·{" "}
+															{item.url}
+														</p>
+														<p className="text-muted-foreground text-xs">
+															Normalization factor ×{" "}
+															{formatNormalizationFactor(factor)}
+														</p>
+													</div>
+													<Button
+														variant="ghost"
+														size="sm"
+														disabled={isLinking || isUnlinking}
+														onClick={async () => {
+															try {
+																await unlinkItem({
+																	productId: product.id,
+																	itemId: item.id,
+																});
+																await refreshProduct();
+															} catch {
+																return;
+															}
+														}}
+													>
+														{isUnlinking ? (
+															<Spinner className="size-4" />
+														) : (
+															<UnlinkIcon data-icon="inline-start" />
+														)}
+														Unlink
+													</Button>
+												</div>
+											),
+										)}
 									</div>
 								</ScrollArea>
 							) : (
@@ -284,4 +332,17 @@ export function ProductItemsDialog({
 			</DialogContent>
 		</Dialog>
 	);
+}
+
+function formatNormalizationFactor(value: string | number) {
+	const parsedValue = Number(value);
+
+	if (!Number.isFinite(parsedValue)) {
+		return String(value);
+	}
+
+	return parsedValue
+		.toFixed(parsedValue >= 1 ? 2 : 4)
+		.replace(/\.0+$/, "")
+		.replace(/(\.\d*?)0+$/, "$1");
 }

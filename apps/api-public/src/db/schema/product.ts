@@ -6,6 +6,7 @@ import { productItem } from "./product-item";
 export const product = pgTable("product", {
 	id: idField,
 	name: text("name").notNull(),
+	comparisonBasis: text("comparison_basis"),
 	published: boolean("published").notNull().default(false),
 	...timestamps,
 });

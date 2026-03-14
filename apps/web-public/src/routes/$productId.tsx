@@ -128,6 +128,8 @@ type CurrentPriceChartRow = {
 	siteName: string;
 	convertedPrice: number;
 	originalPrice: number;
+	normalizedPrice: number;
+	normalizationFactor: number;
 	originalCurrency: CurrencyCode;
 	itemUrl: string;
 	updatedAt: unknown;
@@ -271,6 +273,11 @@ function RouteComponent() {
 		() => buildCurrentPricesChartData(currentPrices?.data ?? []),
 		[currentPrices?.data],
 	);
+	const comparisonBasis =
+		currentPrices?.comparisonBasis ??
+		history?.comparisonBasis ??
+		product.comparisonBasis ??
+		null;
 	const currentPricesChartHeight = Math.max(
 		CURRENT_PRICES_CHART_MIN_HEIGHT,
 		currentPricesChartData.length * CURRENT_PRICES_CHART_ROW_HEIGHT,
@@ -299,6 +306,7 @@ function RouteComponent() {
 							{linkedItems} {linkedItems === 1 ? "item" : "items"} across{" "}
 							{countries.length}{" "}
 							{countries.length === 1 ? "country" : "countries"}
+							{comparisonBasis ? ` · ${comparisonBasis}` : ""}
 						</p>
 					</div>
 					<div className="flex flex-wrap gap-1">
@@ -399,7 +407,16 @@ function RouteComponent() {
 			<Card className="overflow-hidden border pt-0">
 				<CardHeader className="border-b py-4">
 					<div className="flex items-center justify-between gap-3">
-						<CardTitle className="text-base">Lowest Price Over Time</CardTitle>
+						<div>
+							<CardTitle className="text-base">
+								Lowest Price Over Time
+							</CardTitle>
+							<CardDescription>
+								{comparisonBasis
+									? `Normalized to ${comparisonBasis} and converted to ${displayCurrency}.`
+									: `Converted to ${displayCurrency}.`}
+							</CardDescription>
+						</div>
 						{isHistoryFetching && (
 							<RefreshCwIcon className="size-4 animate-spin text-muted-foreground" />
 						)}
@@ -509,7 +526,10 @@ function RouteComponent() {
 							</ChartContainer>
 
 							<p className="text-muted-foreground text-xs">
-								Converted to {displayCurrency}
+								{comparisonBasis
+									? `Normalized to ${comparisonBasis}`
+									: "Converted"}{" "}
+								in {displayCurrency}
 							</p>
 						</>
 					)}
@@ -519,7 +539,14 @@ function RouteComponent() {
 			<Card className="overflow-hidden border pt-0">
 				<CardHeader className="border-b py-4">
 					<div className="flex items-center justify-between gap-3">
-						<CardTitle className="text-base">Current Prices</CardTitle>
+						<div>
+							<CardTitle className="text-base">Current Prices</CardTitle>
+							<CardDescription>
+								{comparisonBasis
+									? `Comparable prices normalized to ${comparisonBasis}.`
+									: `Current prices converted to ${displayCurrency}.`}
+							</CardDescription>
+						</div>
 						{isCurrentPricesFetching && <Spinner className="size-4" />}
 					</div>
 				</CardHeader>
@@ -572,9 +599,11 @@ function RouteComponent() {
 											<TableHead>Site</TableHead>
 											<TableHead>Country</TableHead>
 											<TableHead className="text-right">
-												Price ({displayCurrency})
+												{comparisonBasis
+													? `Normalized (${displayCurrency})`
+													: `Price (${displayCurrency})`}
 											</TableHead>
-											<TableHead className="text-right">Native</TableHead>
+											<TableHead className="text-right">Shelf price</TableHead>
 											<TableHead>Updated</TableHead>
 											<TableHead className="w-10" />
 										</TableRow>
@@ -594,6 +623,14 @@ function RouteComponent() {
 														row.convertedPrice,
 														displayCurrency,
 													)}
+													{comparisonBasis ? (
+														<p className="text-muted-foreground text-xs">
+															×{" "}
+															{formatNormalizationFactor(
+																row.normalizationFactor,
+															)}
+														</p>
+													) : null}
 												</TableCell>
 												<TableCell className="text-right font-mono text-muted-foreground tabular-nums">
 													{formatCurrencyValue(
@@ -670,12 +707,29 @@ function RouteComponent() {
 																			{row.countryCode} · {row.siteName}
 																		</span>
 																		<span className="text-muted-foreground text-xs">
-																			Native{" "}
+																			Shelf{" "}
 																			{formatCurrencyValue(
 																				row.originalPrice,
 																				row.originalCurrency,
 																			)}
 																		</span>
+																		{comparisonBasis ? (
+																			<>
+																				<span className="text-muted-foreground text-xs">
+																					Normalized{" "}
+																					{formatCurrencyValue(
+																						row.normalizedPrice,
+																						row.originalCurrency,
+																					)}
+																				</span>
+																				<span className="text-muted-foreground text-xs">
+																					Factor ×{" "}
+																					{formatNormalizationFactor(
+																						row.normalizationFactor,
+																					)}
+																				</span>
+																			</>
+																		) : null}
 																	</div>
 																	<span className="font-medium font-mono text-foreground tabular-nums">
 																		{formatCurrencyValue(
@@ -723,7 +777,8 @@ function RouteComponent() {
 									</ChartContainer>
 								</div>
 								<p className="text-muted-foreground text-xs">
-									Sorted by price in {displayCurrency}
+									Sorted by {comparisonBasis ? "normalized" : "converted"} price
+									in {displayCurrency}
 								</p>
 							</TabsContent>
 						</Tabs>
@@ -851,7 +906,7 @@ function buildCurrentPricesChartConfig(
 ): ChartConfig {
 	const config: ChartConfig = {
 		convertedPrice: {
-			label: "Converted price",
+			label: "Normalized price",
 		},
 		label: {
 			color: "var(--background)",
@@ -884,6 +939,8 @@ function buildCurrentPricesChartData(
 			siteName: row.siteName,
 			convertedPrice: row.convertedPrice,
 			originalPrice: row.originalPrice,
+			normalizedPrice: row.normalizedPrice,
+			normalizationFactor: row.normalizationFactor,
 			originalCurrency: row.originalCurrency,
 			itemUrl: row.itemUrl,
 			updatedAt: row.time,
@@ -1105,10 +1162,17 @@ function getTimestampFormatter(hasTimeComponent: boolean) {
 
 function formatCurrentPricesTooltipLabel(row?: CurrentPriceChartRow) {
 	if (!row) {
-		return "Current price";
+		return "Current normalized price";
 	}
 
 	return `${row.countryCode} · ${row.fullLabel}`;
+}
+
+function formatNormalizationFactor(value: number) {
+	return value
+		.toFixed(value >= 1 ? 2 : 4)
+		.replace(/\.0+$/, "")
+		.replace(/(\.\d*?)0+$/, "$1");
 }
 
 function areStringArraysEqual(left: string[], right: string[]) {

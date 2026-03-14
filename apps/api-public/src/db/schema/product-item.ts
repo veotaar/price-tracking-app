@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm";
-import { index, pgTable, text, unique } from "drizzle-orm/pg-core";
+import { index, numeric, pgTable, text, unique } from "drizzle-orm/pg-core";
 import { idField, timestamps } from "../helpers";
 import { item } from "./item";
 import { product } from "./product";
@@ -14,6 +14,12 @@ export const productItem = pgTable(
 		itemId: text("item_id")
 			.notNull()
 			.references(() => item.id, { onDelete: "cascade" }),
+		normalizationFactor: numeric("normalization_factor", {
+			precision: 12,
+			scale: 6,
+		})
+			.notNull()
+			.default("1"),
 		...timestamps,
 	},
 	(table) => [
