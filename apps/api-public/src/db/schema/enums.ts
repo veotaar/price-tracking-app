@@ -1,0 +1,38 @@
+import { pgEnum } from "drizzle-orm/pg-core";
+
+export const currencyEnum = pgEnum("currency", [
+	"EUR",
+	"GBP",
+	"SEK",
+	"NOK",
+	"PLN",
+	"TRY",
+	"CZK",
+	"CHF",
+	"DKK",
+	"HUF",
+	"RON",
+	"AED",
+	"QAR",
+	"KWD",
+	"SGD",
+	"JPY",
+	"KRW",
+	"INR",
+	"MYR",
+	"THB",
+	"PHP",
+	"HKD",
+	"TWD",
+	"AUD",
+	"NZD",
+	"USD",
+	"CAD",
+	"MXN",
+	"BRL",
+	"ARS",
+	"CLP",
+	"COP",
+]);
+
+export const strategyEnum = pgEnum("strategy", ["fetch", "browser"]);
