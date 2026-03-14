@@ -1,3 +1,9 @@
+import {
+	invalidateAllProductCaches,
+	invalidateCountryCaches,
+	invalidateSiteCaches,
+	runCacheTaskInBackground,
+} from "@api/lib/cache";
 import { Elysia } from "elysia";
 import { betterAuth } from "../auth";
 import { insertCountrySchema, updateCountrySchema } from "./model";
@@ -28,6 +34,14 @@ export const countries = new Elysia({ name: "countries", prefix: "/countries" })
 	// Create country
 	.post("/", ({ body }) => createCountry(body), {
 		body: insertCountrySchema,
+		afterResponse({ responseValue, set }) {
+			if (typeof set.status === "number" && set.status >= 400) return;
+			if (!responseValue) return;
+
+			runCacheTaskInBackground("countries:create", async () => {
+				await Promise.all([invalidateCountryCaches(), invalidateSiteCaches()]);
+			});
+		},
 	})
 
 	// Update country
@@ -38,12 +52,42 @@ export const countries = new Elysia({ name: "countries", prefix: "/countries" })
 			if (!row) return status(404);
 			return row;
 		},
-		{ body: updateCountrySchema },
+		{
+			body: updateCountrySchema,
+			afterResponse({ params, responseValue, set }) {
+				if (typeof set.status === "number" && set.status >= 400) return;
+				if (!responseValue) return;
+
+				runCacheTaskInBackground("countries:update", async () => {
+					await Promise.all([
+						invalidateCountryCaches(params.id),
+						invalidateSiteCaches(),
+						invalidateAllProductCaches(),
+					]);
+				});
+			},
+		},
 	)
 
 	// Soft-delete country
-	.delete("/:id", async ({ params, status }) => {
-		const row = await deleteCountry(params.id);
-		if (!row) return status(404);
-		return { success: true };
-	});
+	.delete(
+		"/:id",
+		async ({ params, status }) => {
+			const row = await deleteCountry(params.id);
+			if (!row) return status(404);
+			return { success: true };
+		},
+		{
+			afterResponse({ params, set }) {
+				if (typeof set.status === "number" && set.status >= 400) return;
+
+				runCacheTaskInBackground("countries:delete", async () => {
+					await Promise.all([
+						invalidateCountryCaches(params.id),
+						invalidateSiteCaches(),
+						invalidateAllProductCaches(),
+					]);
+				});
+			},
+		},
+	);

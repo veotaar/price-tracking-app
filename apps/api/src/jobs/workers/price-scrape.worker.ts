@@ -1,9 +1,14 @@
 import { db } from "@api/db/db";
 import { table } from "@api/db/model";
+import {
+	invalidateItemCaches,
+	invalidateProductListCaches,
+	invalidateProductReadCaches,
+} from "@api/lib/cache";
 import { parsePrice } from "@api/lib/parser";
 import { extractText, fetchHTML } from "@api/lib/scraper";
 import { Worker } from "bullmq";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { redisConnection } from "../connection";
 
 export interface PriceScrapeJobData {
@@ -86,6 +91,24 @@ async function processPriceScrape(itemId: string) {
 		price: normalizedPriceValue.toFixed(2),
 		currency,
 	});
+
+	const relatedProducts = await db.query.productItem.findMany({
+		columns: {
+			productId: true,
+		},
+		where: and(
+			eq(table.productItem.itemId, itemId),
+			isNull(table.productItem.deletedAt),
+		),
+	});
+
+	await Promise.all([
+		invalidateItemCaches(itemId),
+		invalidateProductListCaches(),
+		...relatedProducts.map(({ productId }) =>
+			invalidateProductReadCaches(productId),
+		),
+	]);
 
 	console.log(
 		`[price-scrape] Recorded price ${normalizedPriceValue} ${currency} for item ${itemId} (raw: ${priceValue}, divisor: ${site.priceDivisor})`,

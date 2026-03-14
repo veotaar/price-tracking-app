@@ -1,23 +1,28 @@
 import { db } from "@api/db/db";
 import { table } from "@api/db/model";
+import { cacheKeys, cacheTtl, withCache } from "@api/lib/cache";
 import { and, eq, isNull } from "drizzle-orm";
 import type { InsertSite, UpdateSite } from "./model";
 
 export async function listSites(countryId?: string) {
-	return await db.query.site.findMany({
-		where: and(
-			isNull(table.site.deletedAt),
-			countryId ? eq(table.site.countryId, countryId) : undefined,
-		),
-		with: { country: true },
-	});
+	return withCache(cacheKeys.siteList(countryId), cacheTtl.siteList, () =>
+		db.query.site.findMany({
+			where: and(
+				isNull(table.site.deletedAt),
+				countryId ? eq(table.site.countryId, countryId) : undefined,
+			),
+			with: { country: true },
+		}),
+	);
 }
 
 export async function getSite(id: string) {
-	return await db.query.site.findFirst({
-		where: and(eq(table.site.id, id), isNull(table.site.deletedAt)),
-		with: { country: true },
-	});
+	return withCache(cacheKeys.siteDetail(id), cacheTtl.siteDetail, () =>
+		db.query.site.findFirst({
+			where: and(eq(table.site.id, id), isNull(table.site.deletedAt)),
+			with: { country: true },
+		}),
+	);
 }
 
 export async function createSite(data: InsertSite) {

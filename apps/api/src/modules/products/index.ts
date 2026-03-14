@@ -1,3 +1,8 @@
+import {
+	invalidateProductListCaches,
+	invalidateProductReadCaches,
+	runCacheTaskInBackground,
+} from "@api/lib/cache";
 import { Elysia } from "elysia";
 import { betterAuth } from "../auth";
 import {
@@ -64,6 +69,14 @@ export const products = new Elysia({ name: "products", prefix: "/products" })
 	.post("/", ({ body }) => createProduct(body), {
 		body: insertProductSchema,
 		auth: true,
+		afterResponse({ responseValue, set }) {
+			if (typeof set.status === "number" && set.status >= 400) return;
+			if (!responseValue) return;
+
+			runCacheTaskInBackground("products:create", async () => {
+				await invalidateProductListCaches();
+			});
+		},
 	})
 
 	// Update product (user auth required)
@@ -77,6 +90,17 @@ export const products = new Elysia({ name: "products", prefix: "/products" })
 		{
 			body: updateProductSchema,
 			auth: true,
+			afterResponse({ params, responseValue, set }) {
+				if (typeof set.status === "number" && set.status >= 400) return;
+				if (!responseValue) return;
+
+				runCacheTaskInBackground("products:update", async () => {
+					await Promise.all([
+						invalidateProductListCaches(),
+						invalidateProductReadCaches(params.id),
+					]);
+				});
+			},
 		},
 	)
 
@@ -88,7 +112,19 @@ export const products = new Elysia({ name: "products", prefix: "/products" })
 			if (!row) return status(404);
 			return { success: true };
 		},
-		{ auth: true },
+		{
+			auth: true,
+			afterResponse({ params, set }) {
+				if (typeof set.status === "number" && set.status >= 400) return;
+
+				runCacheTaskInBackground("products:delete", async () => {
+					await Promise.all([
+						invalidateProductListCaches(),
+						invalidateProductReadCaches(params.id),
+					]);
+				});
+			},
+		},
 	)
 
 	// Link item to product (user auth required)
@@ -103,6 +139,17 @@ export const products = new Elysia({ name: "products", prefix: "/products" })
 		{
 			body: addItemSchema,
 			auth: true,
+			afterResponse({ params, responseValue, set }) {
+				if (typeof set.status === "number" && set.status >= 400) return;
+				if (!responseValue) return;
+
+				runCacheTaskInBackground("products:link-item", async () => {
+					await Promise.all([
+						invalidateProductListCaches(),
+						invalidateProductReadCaches(params.id),
+					]);
+				});
+			},
 		},
 	)
 
@@ -114,5 +161,17 @@ export const products = new Elysia({ name: "products", prefix: "/products" })
 			if (!row) return status(404);
 			return { success: true };
 		},
-		{ auth: true },
+		{
+			auth: true,
+			afterResponse({ params, set }) {
+				if (typeof set.status === "number" && set.status >= 400) return;
+
+				runCacheTaskInBackground("products:unlink-item", async () => {
+					await Promise.all([
+						invalidateProductListCaches(),
+						invalidateProductReadCaches(params.id),
+					]);
+				});
+			},
+		},
 	);

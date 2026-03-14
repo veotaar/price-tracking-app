@@ -1,5 +1,6 @@
 import { db } from "@api/db/db";
 import { table } from "@api/db/model";
+import { cacheKeys, cacheTtl, withCache } from "@api/lib/cache";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import type {
@@ -159,77 +160,96 @@ function getHistoryBucketInterval(minTime: Date | null, maxTime: Date | null) {
 }
 
 export async function listProducts(page: number, limit: number) {
-	const offset = (page - 1) * limit;
+	return withCache(
+		cacheKeys.productList(page, limit),
+		cacheTtl.productList,
+		async () => {
+			const offset = (page - 1) * limit;
 
-	const rows = await db.query.product.findMany({
-		where: isNull(table.product.deletedAt),
-		limit,
-		offset,
-		with: {
-			productItems: {
-				with: { item: true },
-			},
+			const rows = await db.query.product.findMany({
+				where: isNull(table.product.deletedAt),
+				limit,
+				offset,
+				with: {
+					productItems: {
+						with: { item: true },
+					},
+				},
+			});
+
+			const countResult = await db
+				.select({ count: sql<number>`count(*)::int` })
+				.from(table.product)
+				.where(isNull(table.product.deletedAt));
+			const count = countResult[0]?.count ?? 0;
+
+			return {
+				data: rows,
+				pagination: {
+					page,
+					limit,
+					total: count,
+					totalPages: Math.ceil(count / limit),
+				},
+			};
 		},
-	});
-
-	const countResult = await db
-		.select({ count: sql<number>`count(*)::int` })
-		.from(table.product)
-		.where(isNull(table.product.deletedAt));
-	const count = countResult[0]?.count ?? 0;
-
-	return {
-		data: rows,
-		pagination: {
-			page,
-			limit,
-			total: count,
-			totalPages: Math.ceil(count / limit),
-		},
-	};
+	);
 }
 
 export async function getProduct(id: string) {
-	return db.query.product.findFirst({
-		where: and(eq(table.product.id, id), isNull(table.product.deletedAt)),
-		with: {
-			productItems: {
-				with: {
-					item: {
-						with: { site: { with: { country: true } } },
+	return withCache(cacheKeys.productDetail(id), cacheTtl.productDetail, () =>
+		db.query.product.findFirst({
+			where: and(eq(table.product.id, id), isNull(table.product.deletedAt)),
+			with: {
+				productItems: {
+					with: {
+						item: {
+							with: { site: { with: { country: true } } },
+						},
 					},
 				},
 			},
-		},
-	});
+		}),
+	);
 }
 
 export async function getProductPriceHistory(
 	productId: string,
 	{ currency, countryCodes, includeEuAverage }: ProductAnalyticsQuery,
 ): Promise<ProductPriceHistoryResponse | null> {
-	const product = await getActiveProductRecord(productId);
+	return withCache(
+		cacheKeys.productHistory(productId, {
+			currency,
+			countryCodes,
+			includeEuAverage,
+		}),
+		cacheTtl.productHistory,
+		async () => {
+			const product = await getActiveProductRecord(productId);
 
-	if (!product) {
-		return null;
-	}
+			if (!product) {
+				return null;
+			}
 
-	if (!countryCodes?.length && !includeEuAverage) {
-		return {
-			productId,
-			displayCurrency: currency,
-			series: [],
-		};
-	}
+			if (!countryCodes?.length && !includeEuAverage) {
+				return {
+					productId,
+					displayCurrency: currency,
+					series: [],
+				};
+			}
 
-	const historyScopeSql = getHistoryScopeSql(countryCodes, includeEuAverage);
-	const seriesCountryFilterSql = getSeriesCountryFilterSql(countryCodes);
-	const historyBoundsRows = await db.execute(sql<
-		Array<{
-			minTime: Date | string | null;
-			maxTime: Date | string | null;
-		}>
-	>`
+			const historyScopeSql = getHistoryScopeSql(
+				countryCodes,
+				includeEuAverage,
+			);
+			const seriesCountryFilterSql = getSeriesCountryFilterSql(countryCodes);
+			const historyBoundsRows = await db.execute(sql<
+				Array<{
+					minTime: Date | string | null;
+					maxTime: Date | string | null;
+				}>
+			>`
 		SELECT
 			MIN(p.time) AS "minTime",
 			LEAST(MAX(p.time), ${NOW_UTC_SQL}) AS "maxTime"
@@ -249,23 +269,23 @@ export async function getProductPriceHistory(
 			AND p.time <= ${NOW_UTC_SQL}
 			${historyScopeSql}
 	`);
-	const historyBounds = historyBoundsSchema.parse(
-		historyBoundsRows.rows[0] ?? null,
-	);
-	const bucketInterval = getHistoryBucketInterval(
-		historyBounds?.minTime ?? null,
-		historyBounds?.maxTime ?? null,
-	);
-	const bucketIntervalSql = sql.raw(`INTERVAL '${bucketInterval}'`);
-	const gapfillStart =
-		historyBounds.minTime?.toISOString() ?? new Date().toISOString();
-	const gapfillEnd =
-		historyBounds.maxTime?.toISOString() ?? new Date().toISOString();
+			const historyBounds = historyBoundsSchema.parse(
+				historyBoundsRows.rows[0] ?? null,
+			);
+			const bucketInterval = getHistoryBucketInterval(
+				historyBounds?.minTime ?? null,
+				historyBounds?.maxTime ?? null,
+			);
+			const bucketIntervalSql = sql.raw(`INTERVAL '${bucketInterval}'`);
+			const gapfillStart =
+				historyBounds.minTime?.toISOString() ?? new Date().toISOString();
+			const gapfillEnd =
+				historyBounds.maxTime?.toISOString() ?? new Date().toISOString();
 
-	const seriesStatements = [] as ReturnType<typeof sql>[];
+			const seriesStatements = [] as ReturnType<typeof sql>[];
 
-	if (countryCodes?.length) {
-		seriesStatements.push(sql`
+			if (countryCodes?.length) {
+				seriesStatements.push(sql`
 			SELECT
 				"bucket",
 				"countryCode",
@@ -276,10 +296,10 @@ export async function getProductPriceHistory(
 				${seriesCountryFilterSql}
 			GROUP BY "bucket", "countryCode", "countryName"
 		`);
-	}
+			}
 
-	if (includeEuAverage) {
-		seriesStatements.push(sql`
+			if (includeEuAverage) {
+				seriesStatements.push(sql`
 			SELECT
 				"bucket",
 				${EU_AVERAGE_SERIES_KEY} AS "countryCode",
@@ -298,16 +318,16 @@ export async function getProductPriceHistory(
 			WHERE "countryPrice" IS NOT NULL
 			GROUP BY "bucket"
 		`);
-	}
+			}
 
-	const rows = await db.execute(sql<
-		Array<{
-			bucket: Date | string;
-			countryCode: string;
-			countryName: string;
-			price: string | number;
-		}>
-	>`
+			const rows = await db.execute(sql<
+				Array<{
+					bucket: Date | string;
+					countryCode: string;
+					countryName: string;
+					price: string | number;
+				}>
+			>`
 		WITH converted_prices AS (
 			SELECT
 				i.id AS "itemId",
@@ -380,61 +400,67 @@ export async function getProductPriceHistory(
 		ORDER BY "bucket" ASC, "countryCode" ASC
 	`);
 
-	const parsedRows = z.array(historyRowSchema).parse(rows.rows);
-	const byCountry = new Map<string, ProductPriceHistorySeries>();
+			const parsedRows = z.array(historyRowSchema).parse(rows.rows);
+			const byCountry = new Map<string, ProductPriceHistorySeries>();
 
-	for (const row of parsedRows) {
-		const existing = byCountry.get(row.countryCode);
-		const point = {
-			bucket: row.bucket.toISOString(),
-			price: row.price,
-		};
+			for (const row of parsedRows) {
+				const existing = byCountry.get(row.countryCode);
+				const point = {
+					bucket: row.bucket.toISOString(),
+					price: row.price,
+				};
 
-		if (existing) {
-			existing.data.push(point);
-			continue;
-		}
+				if (existing) {
+					existing.data.push(point);
+					continue;
+				}
 
-		byCountry.set(row.countryCode, {
-			countryCode: row.countryCode,
-			countryName: row.countryName,
-			data: [point],
-		});
-	}
+				byCountry.set(row.countryCode, {
+					countryCode: row.countryCode,
+					countryName: row.countryName,
+					data: [point],
+				});
+			}
 
-	return {
-		productId,
-		displayCurrency: currency,
-		series: [...byCountry.values()],
-	};
+			return {
+				productId,
+				displayCurrency: currency,
+				series: [...byCountry.values()],
+			};
+		},
+	);
 }
 
 export async function getProductCurrentPrices(
 	productId: string,
 	{ currency, countryCodes }: ProductAnalyticsQuery,
 ): Promise<ProductCurrentPricesResponse | null> {
-	const product = await getActiveProductRecord(productId);
+	return withCache(
+		cacheKeys.productCurrentPrices(productId, { currency, countryCodes }),
+		cacheTtl.productCurrentPrices,
+		async () => {
+			const product = await getActiveProductRecord(productId);
 
-	if (!product) {
-		return null;
-	}
+			if (!product) {
+				return null;
+			}
 
-	const countryFilterSql = getCountryFilterSql(countryCodes);
-	const rows = await db.execute(sql<
-		Array<{
-			itemId: string;
-			itemName: string | null;
-			itemUrl: string;
-			siteId: string;
-			siteName: string;
-			countryCode: string;
-			countryName: string;
-			originalPrice: string | number;
-			originalCurrency: string;
-			convertedPrice: string | number;
-			time: Date | string;
-		}>
-	>`
+			const countryFilterSql = getCountryFilterSql(countryCodes);
+			const rows = await db.execute(sql<
+				Array<{
+					itemId: string;
+					itemName: string | null;
+					itemUrl: string;
+					siteId: string;
+					siteName: string;
+					countryCode: string;
+					countryName: string;
+					originalPrice: string | number;
+					originalCurrency: string;
+					convertedPrice: string | number;
+					time: Date | string;
+				}>
+			>`
 		WITH latest_prices AS (
 			SELECT DISTINCT ON (p.item_id)
 				p.item_id AS "itemId",
@@ -514,25 +540,27 @@ export async function getProductCurrentPrices(
 		ORDER BY "convertedPrice" ASC, lp."time" DESC, lp."countryCode" ASC
 	`);
 
-	const parsedRows = z.array(currentPriceRowSchema).parse(rows.rows);
+			const parsedRows = z.array(currentPriceRowSchema).parse(rows.rows);
 
-	return {
-		productId,
-		displayCurrency: currency,
-		data: parsedRows.map((row) => ({
-			itemId: row.itemId,
-			itemName: row.itemName,
-			itemUrl: row.itemUrl,
-			siteId: row.siteId,
-			siteName: row.siteName,
-			countryCode: row.countryCode,
-			countryName: row.countryName,
-			originalPrice: row.originalPrice,
-			originalCurrency: row.originalCurrency as CurrencyCode,
-			convertedPrice: row.convertedPrice,
-			time: row.time.toISOString(),
-		})),
-	};
+			return {
+				productId,
+				displayCurrency: currency,
+				data: parsedRows.map((row) => ({
+					itemId: row.itemId,
+					itemName: row.itemName,
+					itemUrl: row.itemUrl,
+					siteId: row.siteId,
+					siteName: row.siteName,
+					countryCode: row.countryCode,
+					countryName: row.countryName,
+					originalPrice: row.originalPrice,
+					originalCurrency: row.originalCurrency as CurrencyCode,
+					convertedPrice: row.convertedPrice,
+					time: row.time.toISOString(),
+				})),
+			};
+		},
+	);
 }
 
 export async function createProduct(data: InsertProduct) {

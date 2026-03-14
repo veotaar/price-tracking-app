@@ -1,3 +1,9 @@
+import { scheduleItem, unscheduleItem } from "@api/jobs/scheduler";
+import {
+	invalidateAllProductCaches,
+	invalidateItemCaches,
+	runCacheTaskInBackground,
+} from "@api/lib/cache";
 import { Elysia } from "elysia";
 import { z } from "zod";
 import { betterAuth } from "../auth";
@@ -28,11 +34,38 @@ export const items = new Elysia({ name: "items", prefix: "/items" })
 	// Create item (user auth required)
 	.post("/", ({ body }) => createItem(body), {
 		body: insertItemSchema,
+		afterResponse({ responseValue, set }) {
+			if (typeof set.status === "number" && set.status >= 400) return;
+			if (!responseValue || typeof responseValue !== "object") return;
+
+			const itemId = "id" in responseValue ? responseValue.id : undefined;
+			if (typeof itemId !== "string") return;
+
+			runCacheTaskInBackground("items:create", async () => {
+				await Promise.all([scheduleItem(itemId), invalidateItemCaches()]);
+			});
+		},
 	})
 
 	// Soft-delete item (user auth required)
-	.delete("/:id", async ({ params, status }) => {
-		const row = await deleteItem(params.id);
-		if (!row) return status(404);
-		return { success: true };
-	});
+	.delete(
+		"/:id",
+		async ({ params, status }) => {
+			const row = await deleteItem(params.id);
+			if (!row) return status(404);
+			return { success: true };
+		},
+		{
+			afterResponse({ params, set }) {
+				if (typeof set.status === "number" && set.status >= 400) return;
+
+				runCacheTaskInBackground("items:delete", async () => {
+					await Promise.all([
+						unscheduleItem(params.id),
+						invalidateItemCaches(params.id),
+						invalidateAllProductCaches(),
+					]);
+				});
+			},
+		},
+	);

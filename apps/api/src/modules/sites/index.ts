@@ -1,3 +1,8 @@
+import {
+	invalidateAllProductCaches,
+	invalidateSiteCaches,
+	runCacheTaskInBackground,
+} from "@api/lib/cache";
 import { Elysia } from "elysia";
 import { z } from "zod";
 import { betterAuth } from "../auth";
@@ -33,6 +38,14 @@ export const sites = new Elysia({ name: "sites", prefix: "/sites" })
 	// Create site
 	.post("/", ({ body }) => createSite(body), {
 		body: insertSiteSchema,
+		afterResponse({ responseValue, set }) {
+			if (typeof set.status === "number" && set.status >= 400) return;
+			if (!responseValue) return;
+
+			runCacheTaskInBackground("sites:create", async () => {
+				await invalidateSiteCaches();
+			});
+		},
 	})
 
 	// Update site
@@ -45,12 +58,38 @@ export const sites = new Elysia({ name: "sites", prefix: "/sites" })
 		},
 		{
 			body: updateSiteSchema,
+			afterResponse({ params, responseValue, set }) {
+				if (typeof set.status === "number" && set.status >= 400) return;
+				if (!responseValue) return;
+
+				runCacheTaskInBackground("sites:update", async () => {
+					await Promise.all([
+						invalidateSiteCaches(params.id),
+						invalidateAllProductCaches(),
+					]);
+				});
+			},
 		},
 	)
 
 	// Soft-delete site
-	.delete("/:id", async ({ params, status }) => {
-		const row = await deleteSite(params.id);
-		if (!row) return status(404);
-		return { success: true };
-	});
+	.delete(
+		"/:id",
+		async ({ params, status }) => {
+			const row = await deleteSite(params.id);
+			if (!row) return status(404);
+			return { success: true };
+		},
+		{
+			afterResponse({ params, set }) {
+				if (typeof set.status === "number" && set.status >= 400) return;
+
+				runCacheTaskInBackground("sites:delete", async () => {
+					await Promise.all([
+						invalidateSiteCaches(params.id),
+						invalidateAllProductCaches(),
+					]);
+				});
+			},
+		},
+	);

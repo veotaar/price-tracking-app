@@ -1,6 +1,7 @@
 import { db } from "@api/db/db";
 import { table } from "@api/db/model";
 import { currencyEnum } from "@api/db/schema/enums";
+import { invalidateAllProductAnalyticsCaches } from "@api/lib/cache";
 import { Worker } from "bullmq";
 import { redisConnection } from "../connection";
 
@@ -65,6 +66,7 @@ async function processExchangeRate() {
 	}
 
 	await db.insert(table.exchangeRate).values(rows);
+	await invalidateAllProductAnalyticsCaches();
 
 	console.log(
 		`[exchange-rate] Inserted ${rows.length} exchange rates (date: ${data.date})`,

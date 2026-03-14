@@ -1,18 +1,23 @@
 import { db } from "@api/db/db";
 import { table } from "@api/db/model";
+import { cacheKeys, cacheTtl, withCache } from "@api/lib/cache";
 import { and, eq, isNull } from "drizzle-orm";
 import type { InsertCountry, UpdateCountry } from "./model";
 
 export async function listCountries() {
-	return db.query.country.findMany({
-		where: isNull(table.country.deletedAt),
-	});
+	return withCache(cacheKeys.countryList(), cacheTtl.countryList, () =>
+		db.query.country.findMany({
+			where: isNull(table.country.deletedAt),
+		}),
+	);
 }
 
 export async function getCountry(id: string) {
-	return db.query.country.findFirst({
-		where: and(eq(table.country.id, id), isNull(table.country.deletedAt)),
-	});
+	return withCache(cacheKeys.countryDetail(id), cacheTtl.countryDetail, () =>
+		db.query.country.findFirst({
+			where: and(eq(table.country.id, id), isNull(table.country.deletedAt)),
+		}),
+	);
 }
 
 export async function createCountry(data: InsertCountry) {
