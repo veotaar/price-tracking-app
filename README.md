@@ -1,121 +1,120 @@
-# turbo-elysia-react
+# Price Tracking App
 
-Example repo for setting up turborepo, elysia, drizzle-orm, better-auth, react (vite), tanstack router, shadcnui and tailwindcss.
+Track product prices across stores and countries, normalize for pack sizes, convert currencies on the fly, and visualize historical trends. All backed by TimescaleDB time-series analytics.
 
-Review and update your auth cofig (`apps/api/src/lib/auth.ts`) if you plan on using this. Check out [better-auth documentation](https://www.better-auth.com/docs) for more info.
+[Live demo for the public frontend](https://compare.ulus.uk/)
 
-## Stack
+## Architecture
 
-**Monorepo**
-- [Turborepo](https://turborepo.dev/)
+A Bun + Turborepo monorepo with two independent product surfaces:
 
-**Backend** (`apps/api`)
-- [Elysia](https://elysiajs.com/)
-- [Drizzle ORM](https://orm.drizzle.team/)
-- [Better Auth](https://www.better-auth.com/)
-
-**Frontend** (`apps/web`)
-- React + Vite
-- [TanStack Router](https://tanstack.com/router)
-- [TanStack Query](https://tanstack.com/query)
-- Tailwind CSS
-- [shadcn/ui](https://ui.shadcn.com/)
-- [@elysiajs/eden](https://elysiajs.com/eden/overview): end-to-end type-safe API client from Elysia
-
-**Tooling**
-- [Biome](https://biomejs.dev/): formatting and linting in one tool (replaces eslint+prettier)
-- Bun
-
-Also includes a `.vscode/settings.json` file with recommended settings from tanstack router.
-
-## Usage
-
-Bootstrap a new project with degit (no git history included):
-
-```bash
-bunx degit veotaar/turbo-elysia-react my-new-project
-
-cd my-new-project
-
-git init
-```
-
-## Getting Started
-
-**1. Install dependencies**
-
-```bash
-bun install
-```
-
-**2. Configure the API environment**
-
-```bash
-cp apps/api/.env.example apps/api/.env
-```
-
-Then edit `apps/api/.env`:
-
-```env
-PORT=3000
-DATABASE_URL=postgres://postgres:password@localhost:5432/your_db
-BETTER_AUTH_SECRET=    # openssl rand -base64 32
-BETTER_AUTH_URL=http://localhost:3000
-```
-
-**3. Push the database schema**
-
-```bash
-cd apps/api
-```
-
-```bash
-bunx --bun drizzle-kit generate
-bunx --bun drizzle-kit migrate
-```
-or
-```bash
-bunx --bun drizzle-kit push
-```
-
-**4. Start the development servers**
-
-```bash
-bun dev
-```
-
-| App | URL |
-|-----|-----|
-| API | http://localhost:3000 |
-| API docs (OpenAPI) | http://localhost:3000/api/openapi |
-| Web | http://localhost:5173 |
-
-**5. You can use drizzle studio**
-
-```bash
-cd apps/api
-```
-```bash
-bunx --bun drizzle-kit studio
-```
-go to https://local.drizzle.studio/ to use drizzle studio
-
-## Project Structure
+| App | Stack | Port | Description |
+| --- | --- | --- | --- |
+| `apps/api` | Elysia | 3000 | Internal API. Auth, CRUD, job workers, Bull Board (`/api/ui`) |
+| `apps/api-public` | Elysia | 3001 | Public read-only API. published products and analytics |
+| `apps/web` | React + Vite | 5173 | Internal admin dashboard |
+| `apps/web-public` | React + Vite | 5174 / 8080 | Public product catalog and price comparison |
 
 ```
 apps/
-  api/        # Elysia backend
-  web/        # React frontend
+  api/            # Auth, admin routes, scraping workers, scheduler
+  api-public/     # Public product & analytics endpoints
+  web/            # Internal dashboard (countries, sites, items, products)
+  web-public/     # Public storefront (product listing, price charts)
 packages/
-  typescript-config/   # Shared TS configs
+  typescript-config/
 ```
 
-## Scripts
+## Domain Model
 
-| Command | Description |
-|---------|-------------|
-| `bun dev` | Run all apps in development mode |
-| `bun build` | Build all apps |
-| `bun check-types` | Type-check all packages |
-| `bun format-and-lint` | Check formatting and linting |
-| `bun format-and-lint:fix` | Auto-fix formatting and linting issues |
+```
+product → product_item → item → price
+                                  ↑
+            site → country    exchange_rate
+```
+
+- A **product** groups **items** (URLs) from different **sites** and **countries**.
+- **price** stores scraped values in native currency. **exchange_rate** stores daily EUR-based FX rates.
+- Both are TimescaleDB hypertables partitioned by time, queried with `time_bucket()` / `time_bucket_gapfill()`.
+- `product_item.normalization_factor` allows fair comparison across pack sizes.
+- `site.price_divisor` handles site-specific price normalization.
+- Only products marked `published` appear on the public surface.
+
+## Tech Stack
+
+**Runtime:** Bun 1.3.10 · TypeScript · Turborepo · Biome
+
+**Backend:** Elysia · Drizzle ORM · Better Auth (argon2id) · BullMQ + Redis · Playwright & Cheerio (scraping)
+
+**Frontend:** React 19 · Vite · TanStack Router & Query · Tailwind CSS v4 · shadcn/ui · Recharts
+
+**Data:** PostgreSQL + TimescaleDB · Redis (job queues + caching)
+
+## Background Jobs
+
+Started as side-effects on API boot via BullMQ workers:
+
+| Job | Schedule | What it does |
+| --- | --- | --- |
+| Price scrape | Every 3h per item | Fetch/browser-scrape price → insert → invalidate caches |
+| Exchange rates | Daily at 15:00 UTC | Fetch EUR-based FX rates → insert → invalidate caches |
+
+Bull Board UI is available at `/api/ui` on the internal API.
+
+## Getting Started
+
+### Prerequisites
+
+- **Bun** ≥ 1.3.10
+- **PostgreSQL** ≥ 18 with TimescaleDB (needs `uuidv7()` support)
+- **Redis**
+
+### Setup
+
+```bash
+# Install dependencies
+bun install
+
+# Create env files from examples
+cp apps/api/.env.example apps/api/.env
+cp apps/api-public/.env.example apps/api-public/.env
+cp .env.example .env
+
+# Run database migrations
+bunx --bun drizzle-kit migrate --config apps/api/drizzle.config.ts
+
+# Start all apps in dev mode
+bun dev
+```
+
+### Environment Variables
+
+| Variable | Required by | Notes |
+| --- | --- | --- |
+| `DATABASE_URL` | Both APIs | PostgreSQL + TimescaleDB connection string |
+| `REDIS_URL` | Both APIs | Defaults to `redis://localhost:6379` |
+| `BETTER_AUTH_SECRET` | Internal API | Generate with `openssl rand -base64 32` |
+| `BETTER_AUTH_URL` | Internal API | Trusted auth origin |
+| `FRONTEND_URL` | Both APIs | CORS origin |
+| `PORT` | Both APIs | `3000` (api) / `3001` (api-public) |
+
+## Commands
+
+```bash
+bun run dev                          # Dev mode (all apps via Turbo)
+bun run build                        # Production build
+bun run check-types                  # TypeScript validation
+bun run format-and-lint              # Biome check
+bun run format-and-lint:fix          # Biome auto-fix
+
+bun --filter @repo/api dev           # Run a single app
+bun --filter @repo/api test          # Run tests
+```
+
+## Deployment
+
+`docker-compose.yml` runs the **public** stack only (`api-public` + `web-public`). It expects `DATABASE_URL` and `REDIS_URL` as external config. Nginx proxies `/api` to the public API so both share one origin.
+
+```bash
+docker compose up --build
+```
