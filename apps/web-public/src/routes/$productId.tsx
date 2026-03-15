@@ -673,7 +673,7 @@ function RouteComponent() {
 											accessibilityLayer={currentPricesChartData.length <= 200}
 											data={currentPricesChartData}
 											layout="vertical"
-											margin={{ left: 12, right: 56, top: 8, bottom: 8 }}
+											margin={{ left: 56, right: 56, top: 8, bottom: 8 }}
 										>
 											<CartesianGrid horizontal={false} />
 											<XAxis type="number" hide />
@@ -751,9 +751,9 @@ function RouteComponent() {
 											>
 												<LabelList
 													dataKey="label"
-													position="insideLeft"
+													position="left"
 													offset={8}
-													className="fill-(--color-label)"
+													className="fill-muted-foreground"
 													fontSize={12}
 												/>
 												<LabelList
@@ -933,7 +933,7 @@ function buildCurrentPricesChartData(
 	return [...rows]
 		.map((row) => ({
 			itemId: row.itemId,
-			label: `${row.countryName} · ${row.siteName}`,
+			label: row.countryCode,
 			fullLabel: row.itemName || row.itemUrl,
 			countryCode: row.countryCode,
 			siteName: row.siteName,
