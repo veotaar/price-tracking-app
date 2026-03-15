@@ -23,14 +23,20 @@ export type ProductAnalyticsFilters = {
 	includeEuAverage?: boolean;
 };
 
-function buildAnalyticsQuery(filters: ProductAnalyticsFilters = {}) {
+function normalizeAnalyticsFilters(filters: ProductAnalyticsFilters = {}) {
 	return {
 		currency: filters.currency ?? "EUR",
 		includeEuAverage: filters.includeEuAverage ?? false,
 		...(filters.countryCodes?.length
-			? { countryCodes: filters.countryCodes }
+			? {
+					countryCodes: [...new Set(filters.countryCodes)].sort(),
+				}
 			: {}),
 	};
+}
+
+function buildAnalyticsQuery(filters: ProductAnalyticsFilters = {}) {
+	return normalizeAnalyticsFilters(filters);
 }
 
 function getErrorMessage(error: { status: unknown; value: unknown }) {
@@ -130,13 +136,15 @@ export function productHistoryOptions(
 	productId: string,
 	filters: ProductAnalyticsFilters = {},
 ) {
+	const normalizedFilters = normalizeAnalyticsFilters(filters);
+
 	return queryOptions({
-		queryKey: ["public-product-history", productId, filters],
-		queryFn: () => getProductHistory(productId, filters),
+		queryKey: ["public-product-history", productId, normalizedFilters],
+		queryFn: () => getProductHistory(productId, normalizedFilters),
 		enabled:
 			!!productId &&
-			((filters.countryCodes?.length ?? 0) > 0 ||
-				filters.includeEuAverage === true),
+			((normalizedFilters.countryCodes?.length ?? 0) > 0 ||
+				normalizedFilters.includeEuAverage === true),
 		staleTime: PRODUCT_ANALYTICS_STALE_TIME_MS,
 	});
 }
@@ -145,10 +153,12 @@ export function productCurrentPricesOptions(
 	productId: string,
 	filters: ProductAnalyticsFilters = {},
 ) {
+	const normalizedFilters = normalizeAnalyticsFilters(filters);
+
 	return queryOptions({
-		queryKey: ["public-product-current-prices", productId, filters],
-		queryFn: () => getProductCurrentPrices(productId, filters),
-		enabled: !!productId && (filters.countryCodes?.length ?? 1) > 0,
+		queryKey: ["public-product-current-prices", productId, normalizedFilters],
+		queryFn: () => getProductCurrentPrices(productId, normalizedFilters),
+		enabled: !!productId && (normalizedFilters.countryCodes?.length ?? 1) > 0,
 		staleTime: PRODUCT_ANALYTICS_STALE_TIME_MS,
 	});
 }
