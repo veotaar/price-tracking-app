@@ -3,6 +3,10 @@ import type { Treaty } from "@elysiajs/eden";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { client } from "@web-public/lib/api-client";
 
+const PRODUCT_LIST_STALE_TIME_MS = 120_000;
+const PRODUCT_DETAIL_STALE_TIME_MS = 120_000;
+const PRODUCT_ANALYTICS_STALE_TIME_MS = 90_000;
+
 export type ProductsListResponse = Treaty.Data<typeof client.api.products.get>;
 export type ProductDetailResponse = Treaty.Data<
 	ReturnType<typeof client.api.products>["get"]
@@ -109,6 +113,7 @@ export function productsOptions(filters: ProductsListFilters = {}) {
 	return queryOptions({
 		queryKey: ["public-products", filters],
 		queryFn: () => getProducts(filters),
+		staleTime: PRODUCT_LIST_STALE_TIME_MS,
 	});
 }
 
@@ -117,6 +122,7 @@ export function productOptions(productId: string) {
 		queryKey: ["public-product", productId],
 		queryFn: () => getProduct(productId),
 		enabled: !!productId,
+		staleTime: PRODUCT_DETAIL_STALE_TIME_MS,
 	});
 }
 
@@ -131,6 +137,7 @@ export function productHistoryOptions(
 			!!productId &&
 			((filters.countryCodes?.length ?? 0) > 0 ||
 				filters.includeEuAverage === true),
+		staleTime: PRODUCT_ANALYTICS_STALE_TIME_MS,
 	});
 }
 
@@ -142,6 +149,7 @@ export function productCurrentPricesOptions(
 		queryKey: ["public-product-current-prices", productId, filters],
 		queryFn: () => getProductCurrentPrices(productId, filters),
 		enabled: !!productId && (filters.countryCodes?.length ?? 1) > 0,
+		staleTime: PRODUCT_ANALYTICS_STALE_TIME_MS,
 	});
 }
 
