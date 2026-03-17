@@ -10,6 +10,7 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
       FRONTEND_URL: ${FRONTEND_URL}
+      SENTRY_DSN: ${SENTRY_DSN}
     expose:
       - "${API_PUBLIC_PORT:-3001}"
     healthcheck:
@@ -29,6 +30,8 @@ services:
     build:
       context: .
       dockerfile: apps/web-public/Dockerfile
+      args:
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
     restart: unless-stopped
     depends_on:
       api-public:

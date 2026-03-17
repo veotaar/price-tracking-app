@@ -1,3 +1,6 @@
+import "./instrument";
+
+import { reactErrorHandler } from "@sentry/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -6,7 +9,11 @@ import { ThemeProvider } from "@web-public/components/theme-provider.tsx";
 import App from "./App.tsx";
 
 // biome-ignore lint/style/noNonNullAssertion: r
-createRoot(document.getElementById("root")!).render(
+createRoot(document.getElementById("root")!, {
+	onCaughtError: reactErrorHandler(),
+	onRecoverableError: reactErrorHandler(),
+	onUncaughtError: reactErrorHandler(),
+}).render(
 	<StrictMode>
 		<ThemeProvider>
 			<App />

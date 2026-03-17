@@ -20,6 +20,10 @@ COPY --from=prepare /app/out/full/ ./
 
 WORKDIR /app/apps/web-public
 
+ARG VITE_SENTRY_DSN=""
+
+ENV VITE_SENTRY_DSN=${VITE_SENTRY_DSN}
+
 RUN bun run build
 
 FROM nginx:1.29.6-alpine3.23 AS runner
