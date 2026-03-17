@@ -6,6 +6,7 @@ const EnvSchema = z.object({
 	PORT: z.coerce.number().default(3001),
 	REDIS_URL: z.string().default("redis://localhost:6379"),
 	FRONTEND_URL: z.url().default("http://localhost:5174"),
+	SENTRY_DSN: z.url(),
 });
 
 export type EnvSchema = z.infer<typeof EnvSchema>;

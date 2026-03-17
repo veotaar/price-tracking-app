@@ -1,6 +1,7 @@
 import { cors } from "@elysiajs/cors";
 import { fromTypes, openapi } from "@elysiajs/openapi";
 import { serverTiming } from "@elysiajs/server-timing";
+import * as Sentry from "@sentry/bun";
 import { Elysia } from "elysia";
 import * as z from "zod";
 import env from "./env";
@@ -27,6 +28,10 @@ const app = new Elysia({ prefix: "/api" })
 	.use(products)
 	.get("/health", () => "OK")
 	.listen(env.PORT);
+
+Sentry.init({
+	dsn: env.SENTRY_DSN,
+});
 
 export type AppPublic = typeof app;
 
