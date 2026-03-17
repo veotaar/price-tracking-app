@@ -17,7 +17,7 @@
 		"better-auth": "^1.5.5",
 		"bullmq": "^5.71.0",
 		"cheerio": "^1.2.0",
-		"cloakbrowser": "^0.3.14",
+		"cloakbrowser": "^0.3.18",
 		"drizzle-orm": "^0.45.1",
 		"drizzle-zod": "^0.8.3",
 		"elysia": "latest",
@@ -29,8 +29,8 @@
 	"devDependencies": {
 		"@repo/typescript-config": "workspace:*",
 		"@types/bun": "^1.3.10",
-		"@types/pg": "^8.15.6",
-		"drizzle-kit": "^0.31.9"
+		"@types/pg": "^8.18.0",
+		"drizzle-kit": "^0.31.10"
 	},
 	"module": "src/index.js"
 }
