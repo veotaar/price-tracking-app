@@ -10,11 +10,13 @@ import { initScheduler } from "./jobs/scheduler";
 import "./jobs/workers/price-scrape.worker";
 import "./jobs/workers/exchange-rate.worker";
 import { OpenAPI } from "./lib/authOpenApi";
+import { initializeTypesenseSearch } from "./lib/typesense";
 import { betterAuthRoutes } from "./modules/auth";
 import { countries } from "./modules/countries";
 import { items } from "./modules/items";
 import { jobs } from "./modules/jobs";
 import { products } from "./modules/products";
+import { search } from "./modules/search";
 import { sites } from "./modules/sites";
 
 const app = new Elysia({ prefix: "/api" })
@@ -45,10 +47,15 @@ const app = new Elysia({ prefix: "/api" })
 	.use(countries)
 	.use(sites)
 	.use(items)
+	.use(search)
 	.use(products)
 	.use(jobs)
 	.get("/health", () => "OK")
 	.listen(env.PORT);
+
+initializeTypesenseSearch().catch((err) =>
+	console.error("[typesense] Failed to initialize:", err),
+);
 
 // Initialize job schedulers for existing items
 initScheduler().catch((err) =>

@@ -3,6 +3,11 @@ import {
 	invalidateSiteCaches,
 	runCacheTaskInBackground,
 } from "@api/lib/cache";
+import {
+	deleteSiteDocument,
+	syncItemsForSite,
+	syncSiteDocument,
+} from "@api/lib/typesense";
 import { Elysia } from "elysia";
 import { z } from "zod";
 import { betterAuth } from "../auth";
@@ -43,7 +48,19 @@ export const sites = new Elysia({ name: "sites", prefix: "/sites" })
 			if (!responseValue) return;
 
 			runCacheTaskInBackground("sites:create", async () => {
-				await invalidateSiteCaches();
+				const siteId =
+					typeof responseValue === "object" &&
+					responseValue &&
+					"id" in responseValue
+						? responseValue.id
+						: undefined;
+
+				await Promise.all([
+					invalidateSiteCaches(),
+					typeof siteId === "string"
+						? syncSiteDocument(siteId)
+						: Promise.resolve(),
+				]);
 			});
 		},
 	})
@@ -66,6 +83,8 @@ export const sites = new Elysia({ name: "sites", prefix: "/sites" })
 					await Promise.all([
 						invalidateSiteCaches(params.id),
 						invalidateAllProductCaches(),
+						syncSiteDocument(params.id),
+						syncItemsForSite(params.id),
 					]);
 				});
 			},
@@ -88,6 +107,7 @@ export const sites = new Elysia({ name: "sites", prefix: "/sites" })
 					await Promise.all([
 						invalidateSiteCaches(params.id),
 						invalidateAllProductCaches(),
+						deleteSiteDocument(params.id),
 					]);
 				});
 			},

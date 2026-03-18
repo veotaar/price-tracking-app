@@ -4,6 +4,7 @@ import {
 	invalidateItemCaches,
 	runCacheTaskInBackground,
 } from "@api/lib/cache";
+import { deleteItemDocument, syncItemDocument } from "@api/lib/typesense";
 import { Elysia } from "elysia";
 import { z } from "zod";
 import { betterAuth } from "../auth";
@@ -42,7 +43,11 @@ export const items = new Elysia({ name: "items", prefix: "/items" })
 			if (typeof itemId !== "string") return;
 
 			runCacheTaskInBackground("items:create", async () => {
-				await Promise.all([scheduleItem(itemId), invalidateItemCaches()]);
+				await Promise.all([
+					scheduleItem(itemId),
+					invalidateItemCaches(),
+					syncItemDocument(itemId),
+				]);
 			});
 		},
 	})
@@ -64,6 +69,7 @@ export const items = new Elysia({ name: "items", prefix: "/items" })
 						unscheduleItem(params.id),
 						invalidateItemCaches(params.id),
 						invalidateAllProductCaches(),
+						deleteItemDocument(params.id),
 					]);
 				});
 			},

@@ -8,6 +8,10 @@ const EnvSchema = z.object({
 	PORT: z.coerce.number().default(3000),
 	REDIS_URL: z.string().default("redis://localhost:6379"),
 	FRONTEND_URL: z.url().default("http://localhost:5173"),
+	TYPESENSE_URL: z.url().optional(),
+	TYPESENSE_API_KEY: z.string().optional(),
+	TYPESENSE_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(5),
+	TYPESENSE_COLLECTION_PREFIX: z.string().default("pta_admin"),
 });
 
 export type EnvSchema = z.infer<typeof EnvSchema>;

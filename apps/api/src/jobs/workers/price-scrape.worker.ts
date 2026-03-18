@@ -7,6 +7,7 @@ import {
 } from "@api/lib/cache";
 import { parsePrice } from "@api/lib/parser";
 import { extractText, fetchHTML } from "@api/lib/scraper";
+import { syncItemDocument } from "@api/lib/typesense";
 import { Worker } from "bullmq";
 import { and, eq, isNull } from "drizzle-orm";
 import { redisConnection } from "../connection";
@@ -105,6 +106,7 @@ async function processPriceScrape(itemId: string) {
 	await Promise.all([
 		invalidateItemCaches(itemId),
 		invalidateProductListCaches(),
+		syncItemDocument(itemId),
 		...relatedProducts.map(({ productId }) =>
 			invalidateProductReadCaches(productId),
 		),
