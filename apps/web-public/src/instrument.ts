@@ -19,12 +19,16 @@ if (dsn) {
 				maskAllText: true,
 				blockAllMedia: true,
 			}),
+			Sentry.consoleLoggingIntegration({
+				levels: ["warn", "error"],
+			}),
 		],
 		tracesSampleRate: import.meta.env.DEV ? 1 : 0.2,
 		tracePropagationTargets,
 		replaysSessionSampleRate: import.meta.env.DEV ? 1 : 0.1,
 		replaysOnErrorSampleRate: 1,
 		debug: import.meta.env.DEV,
+		enableLogs: true,
 	});
 
 	// 	if (import.meta.env.DEV) {

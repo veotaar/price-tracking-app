@@ -32,6 +32,11 @@ const app = new Elysia({ prefix: "/api" })
 if (env.SENTRY_ENABLED && env.SENTRY_DSN) {
 	Sentry.init({
 		dsn: env.SENTRY_DSN,
+		integrations: [
+			// send console.log, console.warn, and console.error calls as logs to Sentry
+			Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
+		],
+		enableLogs: true,
 	});
 }
 
