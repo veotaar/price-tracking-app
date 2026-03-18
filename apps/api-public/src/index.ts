@@ -29,9 +29,11 @@ const app = new Elysia({ prefix: "/api" })
 	.get("/health", () => "OK")
 	.listen(env.PORT);
 
-Sentry.init({
-	dsn: env.SENTRY_DSN,
-});
+if (env.SENTRY_ENABLED && env.SENTRY_DSN) {
+	Sentry.init({
+		dsn: env.SENTRY_DSN,
+	});
+}
 
 export type AppPublic = typeof app;
 
