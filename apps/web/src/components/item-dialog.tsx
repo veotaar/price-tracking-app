@@ -80,7 +80,10 @@ export function AddItemDialog({ sites }: { sites: SiteOption[] }) {
 					name: value.name.trim() || null,
 				});
 
-				await queryClient.invalidateQueries({ queryKey: ["items"] });
+				await Promise.all([
+					queryClient.invalidateQueries({ queryKey: ["items"] }),
+					queryClient.invalidateQueries({ queryKey: ["search", "items"] }),
+				]);
 				formApi.reset();
 				setOpen(false);
 			} catch {

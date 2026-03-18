@@ -1,7 +1,8 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { countriesOptions, useCountries } from "@web/api/countries";
-import { sitesOptions, useDeleteSite, useSites } from "@web/api/sites";
+import { searchSitesOptions, useSearchSites } from "@web/api/search";
+import { useDeleteSite } from "@web/api/sites";
 import { PageHeader } from "@web/components/page-header";
 import { AddSiteDialog, EditSiteDialog } from "@web/components/site-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@web/components/ui/alert";
@@ -25,6 +26,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@web/components/ui/card";
+import { Input } from "@web/components/ui/input";
 import {
 	Select,
 	SelectContent,
@@ -42,13 +44,18 @@ import {
 	TableHeader,
 	TableRow,
 } from "@web/components/ui/table";
-import { ServerIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
-import { useState } from "react";
+import {
+	SearchIcon,
+	ServerIcon,
+	Trash2Icon,
+	TriangleAlertIcon,
+} from "lucide-react";
+import { useDeferredValue, useState } from "react";
 
 export const Route = createFileRoute("/app/sites")({
 	loader: async ({ context: { queryClient } }) => {
 		const [sites, countries] = await Promise.all([
-			queryClient.ensureQueryData(sitesOptions()),
+			queryClient.ensureQueryData(searchSitesOptions()),
 			queryClient.ensureQueryData(countriesOptions()),
 		]);
 
@@ -73,8 +80,11 @@ export const Route = createFileRoute("/app/sites")({
 function RouteComponent() {
 	const loaderData = Route.useLoaderData();
 	const [countryIdFilter, setCountryIdFilter] = useState<string | null>(null);
+	const [search, setSearch] = useState("");
+	const deferredSearch = useDeferredValue(search.trim());
 	const { data: countries = loaderData.countries } = useCountries();
-	const { data: sites = loaderData.sites } = useSites({
+	const { data: sites = loaderData.sites } = useSearchSites({
+		search: deferredSearch || undefined,
 		countryId: countryIdFilter || undefined,
 	});
 
@@ -96,7 +106,16 @@ function RouteComponent() {
 			/>
 
 			{/* Filters */}
-			<div className="flex items-center gap-2">
+			<div className="flex flex-wrap items-center gap-2">
+				<div className="relative">
+					<SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+					<Input
+						value={search}
+						onChange={(event) => setSearch(event.target.value)}
+						placeholder="Search sites..."
+						className="w-64 pl-9"
+					/>
+				</div>
 				<Select
 					items={countries.map((c) => ({ label: c.name, value: c.id }))}
 					value={countryIdFilter}
@@ -115,11 +134,14 @@ function RouteComponent() {
 						</SelectGroup>
 					</SelectContent>
 				</Select>
-				{countryIdFilter && (
+				{(countryIdFilter || search) && (
 					<Button
 						variant="ghost"
 						size="sm"
-						onClick={() => setCountryIdFilter(null)}
+						onClick={() => {
+							setCountryIdFilter(null);
+							setSearch("");
+						}}
 					>
 						Reset
 					</Button>
@@ -243,7 +265,15 @@ function DeleteSiteButton({
 						onClick={async () => {
 							try {
 								await mutateAsync({ siteId: site.id });
-								await queryClient.invalidateQueries({ queryKey: ["sites"] });
+								await Promise.all([
+									queryClient.invalidateQueries({ queryKey: ["sites"] }),
+									queryClient.invalidateQueries({
+										queryKey: ["search", "sites"],
+									}),
+									queryClient.invalidateQueries({
+										queryKey: ["search", "items"],
+									}),
+								]);
 								setOpen(false);
 							} catch {
 								return;

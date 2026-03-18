@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { itemsOptions, useDeleteItem, useItems } from "@web/api/items";
+import { useDeleteItem } from "@web/api/items";
+import { searchItemsOptions, useSearchItems } from "@web/api/search";
 import { sitesOptions, useSites } from "@web/api/sites";
 import { AddItemDialog } from "@web/components/item-dialog";
 import { PageHeader } from "@web/components/page-header";
@@ -54,7 +55,7 @@ import { useDeferredValue, useState } from "react";
 export const Route = createFileRoute("/app/items")({
 	loader: async ({ context: { queryClient } }) => {
 		const [items, sites] = await Promise.all([
-			queryClient.ensureQueryData(itemsOptions()),
+			queryClient.ensureQueryData(searchItemsOptions()),
 			queryClient.ensureQueryData(sitesOptions()),
 		]);
 
@@ -82,7 +83,7 @@ function RouteComponent() {
 	const [search, setSearch] = useState("");
 	const deferredSearch = useDeferredValue(search.trim());
 	const { data: sites = loaderData.sites } = useSites();
-	const { data: items = loaderData.items } = useItems({
+	const { data: items = loaderData.items } = useSearchItems({
 		search: deferredSearch || undefined,
 		siteId: siteIdFilter || undefined,
 	});
@@ -250,7 +251,12 @@ function DeleteItemButton({
 						onClick={async () => {
 							try {
 								await mutateAsync({ itemId: item.id });
-								await queryClient.invalidateQueries({ queryKey: ["items"] });
+								await Promise.all([
+									queryClient.invalidateQueries({ queryKey: ["items"] }),
+									queryClient.invalidateQueries({
+										queryKey: ["search", "items"],
+									}),
+								]);
 								setOpen(false);
 							} catch {
 								return;

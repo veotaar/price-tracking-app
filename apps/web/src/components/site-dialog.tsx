@@ -169,7 +169,11 @@ function SiteDialog({
 					await createSite(payload);
 				}
 
-				await queryClient.invalidateQueries({ queryKey: ["sites"] });
+				await Promise.all([
+					queryClient.invalidateQueries({ queryKey: ["sites"] }),
+					queryClient.invalidateQueries({ queryKey: ["search", "sites"] }),
+					queryClient.invalidateQueries({ queryKey: ["search", "items"] }),
+				]);
 				formApi.reset(defaultValues);
 				setOpen(false);
 			} catch {
